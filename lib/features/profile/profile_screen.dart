@@ -4,8 +4,8 @@ import '../../../core/layouts/app_layout.dart';
 import '../../../core/utils/app_colors.dart';
 import 'widgets/profile_avatar.dart';
 import 'widgets/glass_container.dart';
-import 'widgets/rounded_input_field.dart';
-import 'widgets/rounded_button.dart';
+import '../../core/widgets/rounded_input_field.dart';
+import '../../core/widgets/rounded_button.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../core/utils/app_colors.dart';
+import '../utils/app_colors.dart';
 
 class RoundedInputField extends StatelessWidget {
   final TextEditingController controller;

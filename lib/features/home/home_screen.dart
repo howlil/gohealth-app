@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/layouts/app_layout.dart';
 import '../../../core/utils/app_colors.dart';
-import 'widgets/glass_card.dart';
+import '../../core/widgets/glass_card.dart';
 import 'widgets/stat_chip.dart';
 import 'widgets/action_glass_card.dart';
-// import '../../ibm/screens/ibm_screen.dart';
-// import '../../food/screens/food_screen.dart';
+import '../ibm/ibm_screen.dart';
+import '../foods/food_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -313,10 +313,10 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.monitor_weight_outlined,
             color: AppColors.secondary,
             onTap: () {
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(builder: (context) => const IBMScreen()),
-              // );
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) =>  IBMScreen()),
+              );
             },
           ),
         ),
@@ -328,10 +328,10 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.restaurant_outlined,
             color: AppColors.primary,
             onTap: () {
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(builder: (context) => const FoodScreen()),
-              // );
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => FoodScreen()),
+              );
             },
           ),
         ),

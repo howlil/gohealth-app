@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../features/splash_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/ibm/ibm_screen.dart';
 
 
 
@@ -18,6 +19,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const SplashScreen());
       case home:
         return MaterialPageRoute(builder: (_) => const HomeScreen());
+      case ibm:
+        return MaterialPageRoute(builder: (_) => const IBMScreen());
       case profile:
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
       default:
