@@ -88,7 +88,7 @@ class AppLayout extends StatelessWidget {
         break;
       case 1:
         // Tab tengah bisa jadi halaman add/service atau lainnya
-        route = AppRoutes.ibm; // Ganti dengan route yang sesuai untuk tab tengah
+        route = AppRoutes.nutrition; // Ganti dengan route yang sesuai untuk tab tengah
         break;
       case 2:
         route = AppRoutes.profile;

@@ -1,12 +1,11 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/layouts/app_layout.dart';
 import '../../../core/utils/app_colors.dart';
 import '../../core/widgets/glass_card.dart';
 import 'widgets/food_item.dart';
-import 'widgets/nutrient_bar.dart';
+import '../../core/widgets/nutrient_bar.dart';
 import '../../core/widgets/round_search_field.dart';
-import 'widgets/tab_selector.dart';
+import '../../core/widgets/tab_selector.dart';
 import 'models/food_model.dart';
 
 class FoodScreen extends StatefulWidget {
@@ -144,17 +143,13 @@ class _FoodScreenState extends State<FoodScreen> {
     if (_selectedTab == 'Favorit') {
       filteredList = filteredList.where((food) => food.isFavorite).toList();
     } else if (_selectedTab != 'Semua') {
-      filteredList =
-          filteredList.where((food) => food.category == _selectedTab).toList();
+      filteredList = filteredList.where((food) => food.category == _selectedTab).toList();
     }
 
     // Filter berdasarkan pencarian
     if (_searchController.text.isNotEmpty) {
       final query = _searchController.text.toLowerCase();
-      filteredList =
-          filteredList
-              .where((food) => food.name.toLowerCase().contains(query))
-              .toList();
+      filteredList = filteredList.where((food) => food.name.toLowerCase().contains(query)).toList();
     }
 
     return filteredList;
@@ -183,7 +178,7 @@ class _FoodScreenState extends State<FoodScreen> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.05),
+                color: AppColors.primary.withAlpha(13), // Fixed: withOpacity to withAlpha
               ),
             ),
           ),
@@ -195,7 +190,7 @@ class _FoodScreenState extends State<FoodScreen> {
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary.withOpacity(0.05),
+                color: AppColors.secondary.withAlpha(13), // Fixed: withOpacity to withAlpha
               ),
             ),
           ),
@@ -216,6 +211,7 @@ class _FoodScreenState extends State<FoodScreen> {
                       onChanged: (value) {
                         setState(() {});
                       },
+                      hintText: 'Cari makanan...', // Added missing required parameter
                     ),
                     const SizedBox(height: 16),
                     TabSelector(
@@ -234,10 +230,7 @@ class _FoodScreenState extends State<FoodScreen> {
 
               // Daftar makanan dan detail
               Expanded(
-                child:
-                    _selectedFood == null
-                        ? _buildFoodList()
-                        : _buildFoodDetails(),
+                child: _selectedFood == null ? _buildFoodList() : _buildFoodDetails(),
               ),
             ],
           ),
@@ -256,32 +249,32 @@ class _FoodScreenState extends State<FoodScreen> {
   Widget _buildFoodList() {
     return _filteredFoods.isEmpty
         ? Center(
-          child: Text(
-            'Tidak ada makanan yang ditemukan',
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-          ),
-        )
+            child: Text(
+              'Tidak ada makanan yang ditemukan',
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+            ),
+          )
         : ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          itemCount: _filteredFoods.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 10),
-          itemBuilder: (context, index) {
-            final food = _filteredFoods[index];
-            return FoodItem(
-              food: food,
-              onTap: () {
-                setState(() {
-                  _selectedFood = food;
-                });
-              },
-              onFavoriteToggle: () {
-                setState(() {
-                  food.isFavorite = !food.isFavorite;
-                });
-              },
-            );
-          },
-        );
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            itemCount: _filteredFoods.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final food = _filteredFoods[index];
+              return FoodItem(
+                food: food,
+                onTap: () {
+                  setState(() {
+                    _selectedFood = food;
+                  });
+                },
+                onFavoriteToggle: () {
+                  setState(() {
+                    food.isFavorite = !food.isFavorite;
+                  });
+                },
+              );
+            },
+          );
   }
 
   Widget _buildFoodDetails() {
@@ -406,7 +399,7 @@ class _FoodScreenState extends State<FoodScreen> {
                         maxValue: 150,
                       ),
                     );
-                  }).toList(),
+                  }), // Fixed: Removed unnecessary toList()
                 ],
 
                 const SizedBox(height: 24),

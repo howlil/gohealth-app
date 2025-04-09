@@ -1,11 +1,10 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/layouts/app_layout.dart';
 import '../../../core/utils/app_colors.dart';
-import 'widgets/input_field.dart';
+import '../../core/widgets/rounded_input_field.dart';
 import '../../core/widgets/glass_card.dart';
-import '../../core/widgets/segmented_control.dart';
+import '../../core/widgets/tab_selector.dart';
 import 'models/ibm_history.dart';
 
 class IBMScreen extends StatefulWidget {
@@ -153,7 +152,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.05),
+                color: AppColors.primary.withAlpha(13), // Fixed: withOpacity to withAlpha
               ),
             ),
           ),
@@ -165,7 +164,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary.withOpacity(0.05),
+                color: AppColors.secondary.withAlpha(13), // Fixed: withOpacity to withAlpha
               ),
             ),
           ),
@@ -224,7 +223,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
             ),
           ),
           const SizedBox(height: 8),
-          CustomInputField(
+          RoundedInputField( // Fixed: Changed CustomInputField to InputField
             controller: _heightController,
             hintText: 'Masukkan tinggi (cm)',
             keyboardType: TextInputType.number,
@@ -239,7 +238,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
             ),
           ),
           const SizedBox(height: 8),
-          CustomInputField(
+          RoundedInputField( // Fixed: Changed CustomInputField to InputField
             controller: _weightController,
             hintText: 'Masukkan berat (kg)',
             keyboardType: TextInputType.number,
@@ -283,10 +282,10 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _categoryColor.withOpacity(0.1),
+        color: _categoryColor.withAlpha(26), // Fixed: withOpacity(0.1) to withAlpha(26)
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: _categoryColor.withOpacity(0.3),
+          color: _categoryColor.withAlpha(77), // Fixed: withOpacity(0.3) to withAlpha(77)
           width: 1,
         ),
       ),
@@ -300,7 +299,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: _categoryColor.withOpacity(0.2),
+                  color: _categoryColor.withAlpha(51), // Fixed: withOpacity(0.2) to withAlpha(51)
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -359,9 +358,9 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
   }
 
   Widget _buildTabControl() {
-    return CustomSegmentedControl(
+    return TabSelector(
       tabs: const ['Ringkasan Gizi', 'Riwayat BMI'],
-      activeTab: _activeTab,
+      selectedTab: _activeTab,
       onTabSelected: (tab) {
         setState(() {
           _activeTab = tab;
@@ -432,7 +431,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
+            color: color.withAlpha(26), // Fixed: withOpacity(0.1) to withAlpha(26)
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -653,7 +652,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
               ),
               belowBarData: BarAreaData(
                 show: true,
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withAlpha(26), // Fixed: withOpacity(0.1) to withAlpha(26)
               ),
             ),
           ],

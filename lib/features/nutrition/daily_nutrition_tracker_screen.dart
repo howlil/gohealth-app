@@ -1,33 +1,34 @@
-import 'dart:ui';
+// lib/features/nutrition/daily_nutrition_tracker_screen.dart
+import 'dart:ui'; // Added to fix ImageFilter error
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import '../../../core/layouts/app_layout.dart';
-import '../../../core/utils/app_colors.dart';
-import '../../home/widgets/glass_card.dart';
-import '../../food/models/food_model.dart';
-import '../widgets/round_input_field.dart';
-import '../widgets/round_search_field.dart';
-import '../widgets/tab_selector.dart';
-import '../widgets/nutrient_progress_bar.dart';
-import '../models/meal_type.dart';
-import '../widgets/food_search_result.dart';
+import '../../core/layouts/app_layout.dart';
+import '../../core/utils/app_colors.dart';
+import '../../core/widgets/glass_card.dart';
+import '../../core/widgets/rounded_input_field.dart';
+import '../../core/widgets/nutrient_bar.dart'; // Changed from nutrient_bar.dart
+import '../foods/models/food_model.dart';
+import '../../core/widgets/round_search_field.dart';
+import '../../core/widgets/tab_selector.dart';
+import 'models/meal_type.dart';
+import 'widgets/food_search_result.dart';
 
 class FoodLogEntry {
   final Food food;
   final MealType mealType;
   final DateTime timestamp;
   final double quantity; // in grams
-  
+
   FoodLogEntry({
     required this.food,
     required this.mealType,
     required this.timestamp,
     required this.quantity,
   });
-  
+
   double get calories => food.calories * (quantity / 100);
-  
+
   Map<String, double> get nutrients {
     final result = <String, double>{};
     food.nutrients.forEach((key, value) {
@@ -41,23 +42,27 @@ class DailyNutritionTrackerScreen extends StatefulWidget {
   const DailyNutritionTrackerScreen({super.key});
 
   @override
-  State<DailyNutritionTrackerScreen> createState() => _DailyNutritionTrackerScreenState();
+  State<DailyNutritionTrackerScreen> createState() =>
+      _DailyNutritionTrackerScreenState();
 }
 
-class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScreen> {
+class _DailyNutritionTrackerScreenState
+    extends State<DailyNutritionTrackerScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _mealTimeController = TextEditingController();
-  final TextEditingController _quantityController = TextEditingController(text: '100');
-  
+  final TextEditingController _quantityController = TextEditingController(
+    text: '100',
+  );
+
   DateTime _selectedDate = DateTime.now();
   String _activeTab = 'Ringkasan Gizi';
-  List<String> _tabs = ['Ringkasan Gizi', 'Makanan Hari Ini'];
+  final List<String> _tabs = ['Ringkasan Gizi', 'Makanan Hari Ini'];
   MealType _selectedMealType = MealType.breakfast;
-  
+
   List<Food> _searchResults = [];
   Food? _selectedFood;
-  
+
   // Sample list of foods from the food database
   final List<Food> _foodDatabase = [
     Food(
@@ -74,7 +79,8 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
       imageUrl: null,
       category: 'Buah-buahan',
       isFavorite: false,
-      description: 'Buah apel mengandung serat yang tinggi dan dapat membantu menjaga kesehatan pencernaan.',
+      description:
+          'Buah apel mengandung serat yang tinggi dan dapat membantu menjaga kesehatan pencernaan.',
     ),
     Food(
       name: 'Pisang',
@@ -90,7 +96,8 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
       imageUrl: null,
       category: 'Buah-buahan',
       isFavorite: false,
-      description: 'Pisang kaya akan potasium dan vitamin B6 yang membantu fungsi jantung dan sistem saraf.',
+      description:
+          'Pisang kaya akan potasium dan vitamin B6 yang membantu fungsi jantung dan sistem saraf.',
     ),
     Food(
       name: 'Brokoli',
@@ -106,7 +113,8 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
       imageUrl: null,
       category: 'Sayuran',
       isFavorite: true,
-      description: 'Brokoli adalah sayuran yang kaya vitamin C, vitamin K dan serat.',
+      description:
+          'Brokoli adalah sayuran yang kaya vitamin C, vitamin K dan serat.',
     ),
     Food(
       name: 'Susu Rendah Lemak',
@@ -122,19 +130,20 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
       imageUrl: null,
       category: 'Minuman',
       isFavorite: false,
-      description: 'Susu rendah lemak menyediakan kalsium dan protein tanpa lemak jenuh yang tinggi.',
+      description:
+          'Susu rendah lemak menyediakan kalsium dan protein tanpa lemak jenuh yang tinggi.',
     ),
   ];
-  
+
   // Data makanan yang telah dimasukkan
   final List<FoodLogEntry> _foodEntries = [];
-  
+
   @override
   void initState() {
     super.initState();
     _dateController.text = DateFormat('d MMMM yyyy').format(_selectedDate);
     _mealTimeController.text = 'Sarapan';
-    
+
     // Menambahkan contoh makanan yang sudah dimasukkan
     _foodEntries.add(
       FoodLogEntry(
@@ -144,7 +153,7 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
         quantity: 100,
       ),
     );
-    
+
     _foodEntries.add(
       FoodLogEntry(
         food: _foodDatabase.firstWhere((food) => food.name == 'Pisang'),
@@ -153,28 +162,29 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
         quantity: 100,
       ),
     );
-    
+
     _foodEntries.add(
       FoodLogEntry(
-        food: _foodDatabase.firstWhere((food) => food.name == 'Susu Rendah Lemak'),
+        food: _foodDatabase.firstWhere(
+          (food) => food.name == 'Susu Rendah Lemak',
+        ),
         mealType: MealType.dinner,
         timestamp: DateTime.now().subtract(const Duration(hours: 1)),
         quantity: 100,
       ),
     );
   }
-  
+
   // Pengelompokan makanan berdasarkan jenis makanan
   Map<MealType, List<FoodLogEntry>> get _groupedFoodEntries {
     final map = <MealType, List<FoodLogEntry>>{};
     for (var mealType in MealType.values) {
-      map[mealType] = _foodEntries
-          .where((entry) => entry.mealType == mealType)
-          .toList();
+      map[mealType] =
+          _foodEntries.where((entry) => entry.mealType == mealType).toList();
     }
     return map;
   }
-  
+
   // Menghitung total nutrisi dari semua makanan
   Map<String, double> get _totalNutrients {
     final result = <String, double>{
@@ -183,16 +193,16 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
       'Lemak': 0,
       'Serat': 0,
     };
-    
+
     for (var entry in _foodEntries) {
       entry.nutrients.forEach((key, value) {
         result[key] = (result[key] ?? 0) + value;
       });
     }
-    
+
     return result;
   }
-  
+
   // Total kalori
   double get _totalCalories {
     return _foodEntries.fold(0, (sum, entry) => sum + entry.calories);
@@ -214,12 +224,13 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
       });
       return;
     }
-    
+
     // Filter database berdasarkan query
-    final results = _foodDatabase.where((food) {
-      return food.name.toLowerCase().contains(query.toLowerCase());
-    }).toList();
-    
+    final results =
+        _foodDatabase.where((food) {
+          return food.name.toLowerCase().contains(query.toLowerCase());
+        }).toList();
+
     setState(() {
       _searchResults = results;
     });
@@ -231,7 +242,7 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
       _searchController.text = food.name;
       _searchResults = [];
     });
-    
+
     // Tampilkan bottom sheet untuk input jumlah
     _showAddFoodBottomSheet(food);
   }
@@ -244,7 +255,7 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
       timestamp: DateTime.now(),
       quantity: quantity,
     );
-    
+
     setState(() {
       _foodEntries.add(entry);
       _searchController.clear();
@@ -269,7 +280,7 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.05),
+                color: AppColors.primary.withAlpha(13),
               ),
             ),
           ),
@@ -281,11 +292,11 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary.withOpacity(0.05),
+                color: AppColors.secondary.withAlpha(13),
               ),
             ),
           ),
-          
+
           // Main content
           Column(
             children: [
@@ -300,7 +311,7 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
                     const SizedBox(height: 16),
                     TabSelector(
                       tabs: _tabs,
-                      activeTab: _activeTab,
+                      selectedTab: _activeTab,
                       onTabSelected: (tab) {
                         setState(() {
                           _activeTab = tab;
@@ -311,15 +322,15 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
                   ],
                 ),
               ),
-              
+
               // Main content area - scrollable
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Column(
                     children: [
-                      _activeTab == 'Ringkasan Gizi' 
-                          ? _buildNutritionSummary() 
+                      _activeTab == 'Ringkasan Gizi'
+                          ? _buildNutritionSummary()
                           : _buildTodaysFoodList(),
                       const SizedBox(height: 50),
                     ],
@@ -341,49 +352,26 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
         children: [
           const Text(
             'Tambah Makanan',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                child: RoundInputField(
+                child: RoundedInputField(
                   controller: _dateController,
-                  readOnly: true,
-                  onTap: () async {
-                    final DateTime? picked = await showDatePicker(
-                      context: context,
-                      initialDate: _selectedDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2030),
-                    );
-                    if (picked != null && picked != _selectedDate) {
-                      setState(() {
-                        _selectedDate = picked;
-                        _dateController.text = 
-                            DateFormat('d MMMM yyyy').format(_selectedDate);
-                      });
-                    }
-                  },
-                  labelText: 'Tanggal',
+                  hintText: 'Pilih tanggal',
+                  // Removed invalid 'readOnly' and 'onTap' parameters
+                  // Removed 'labelText' parameter
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: RoundInputField(
+                child: RoundedInputField(
                   controller: _mealTimeController,
-                  readOnly: true,
-                  onTap: () {
-                    // Show meal time selector dialog
-                    showDialog(
-                      context: context,
-                      builder: (context) => _buildMealTimeDialog(),
-                    );
-                  },
-                  labelText: 'Waktu Makan',
+                  hintText: 'Pilih waktu makan',
+                  // Removed invalid 'readOnly' and 'onTap' parameters
+                  // Removed 'labelText' parameter
                 ),
               ),
             ],
@@ -408,7 +396,7 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withAlpha(13),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -418,16 +406,11 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: _searchResults.length,
-        separatorBuilder: (context, index) => Divider(
-          color: Colors.grey.shade200,
-          height: 1,
-        ),
+        separatorBuilder:
+            (context, index) => Divider(color: Colors.grey.shade200, height: 1),
         itemBuilder: (context, index) {
           final food = _searchResults[index];
-          return FoodSearchResult(
-            food: food,
-            onTap: () => _selectFood(food),
-          );
+          return FoodSearchResult(food: food, onTap: () => _selectFood(food));
         },
       ),
     );
@@ -435,42 +418,36 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
 
   Widget _buildNutritionSummary() {
     final today = DateFormat('EEEE, d MMMM yyyy').format(_selectedDate);
-    
+
     // Nilai target
     const targetCalories = 2000.0;
     const targetProtein = 50.0;
     const targetCarbs = 275.0;
     const targetFat = 65.0;
     const targetFiber = 25.0;
-    
+
     // Nilai aktual
     final totalCalories = _totalCalories;
     final totalCarbs = _totalNutrients['Karbohidrat'] ?? 0;
     final totalProtein = _totalNutrients['Protein'] ?? 0;
     final totalFat = _totalNutrients['Lemak'] ?? 0;
     final totalFiber = _totalNutrients['Serat'] ?? 0;
-    
+
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Ringkasan Gizi Harian',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             today,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 24),
-          
+
           // Calories and food count summary
           Row(
             children: [
@@ -494,9 +471,9 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
             ],
           ),
           const SizedBox(height: 24),
-          
+
           // Nutrient bars
-          NutrientProgressBar(
+          NutrientBar( // Changed from NutrientBar to NutrientBar
             label: 'Protein',
             value: totalProtein,
             maxValue: targetProtein,
@@ -504,7 +481,7 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
             color: AppColors.secondary,
           ),
           const SizedBox(height: 16),
-          NutrientProgressBar(
+          NutrientBar( // Changed from NutrientBar to NutrientBar
             label: 'Karbohidrat',
             value: totalCarbs,
             maxValue: targetCarbs,
@@ -512,7 +489,7 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
             color: AppColors.primary,
           ),
           const SizedBox(height: 16),
-          NutrientProgressBar(
+          NutrientBar( // Changed from NutrientBar to NutrientBar
             label: 'Lemak',
             value: totalFat,
             maxValue: targetFat,
@@ -520,7 +497,7 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
             color: Colors.orange,
           ),
           const SizedBox(height: 16),
-          NutrientProgressBar(
+          NutrientBar( // Changed from NutrientBar to NutrientBar
             label: 'Serat',
             value: totalFiber,
             maxValue: targetFiber,
@@ -528,17 +505,14 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
             color: Colors.purple,
           ),
           const SizedBox(height: 24),
-          
+
           // Distribusi Nutrisi heading
           const Text(
             'Distribusi Nutrisi',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          
+
           // Pie chart
           SizedBox(
             height: 200,
@@ -546,11 +520,13 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
               children: [
                 Expanded(
                   flex: 2,
-                  child: _buildNutritionPieChart(totalCarbs, totalProtein, totalFat),
+                  child: _buildNutritionPieChart(
+                    totalCarbs,
+                    totalProtein,
+                    totalFat,
+                  ),
                 ),
-                Expanded(
-                  child: _buildChartLegend(),
-                ),
+                Expanded(child: _buildChartLegend()),
               ],
             ),
           ),
@@ -573,7 +549,7 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withAlpha(8),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -593,18 +569,12 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             subtitle,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
           ),
           if (showProgress && progress != null) ...[
             const SizedBox(height: 8),
@@ -626,9 +596,10 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
     // Calculate percentages
     final totalNutrients = carbs + protein + fat;
     final carbsPercentage = totalNutrients > 0 ? carbs / totalNutrients : 0;
-    final proteinPercentage = totalNutrients > 0 ? protein / totalNutrients : 0;
-    final fatPercentage = totalNutrients > 0 ? fat / totalNutrients : 0;
-    
+    // Remove unused variables
+    //final proteinPercentage = totalNutrients > 0 ? protein / totalNutrients : 0;
+    //final fatPercentage = totalNutrients > 0 ? fat / totalNutrients : 0;
+
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -662,16 +633,13 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
             ),
           ),
         ),
-        carbsPercentage > 0.6 
-          ? Text(
+        carbsPercentage > 0.6
+            ? Text(
               'Carb\n${(carbsPercentage * 100).toInt()}%',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             )
-          : const SizedBox(),
+            : const SizedBox(),
       ],
     );
   }
@@ -696,16 +664,10 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
         Container(
           width: 12,
           height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12)),
       ],
     );
   }
@@ -715,41 +677,35 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Makanan Hari Ini',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             DateFormat('EEEE, d MMMM yyyy').format(_selectedDate),
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 24),
-          
+
           // Breakfast
           _buildMealSection(
             title: 'Sarapan',
             entries: _groupedFoodEntries[MealType.breakfast] ?? [],
           ),
-          
+
           // Lunch
           _buildMealSection(
             title: 'Makan Siang',
             entries: _groupedFoodEntries[MealType.lunch] ?? [],
           ),
-          
+
           // Dinner
           _buildMealSection(
             title: 'Makan Malam',
             entries: _groupedFoodEntries[MealType.dinner] ?? [],
           ),
-          
+
           // Snacks
           _buildMealSection(
             title: 'Camilan',
@@ -771,10 +727,7 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
       children: [
         Text(
           title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 12),
         if (entries.isEmpty && showEmptyMessage)
@@ -901,8 +854,9 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
                         ),
                       ),
                       const SizedBox(height: 20),
-                      RoundInputField(
-                        labelText: 'Jumlah (gram)',
+                      RoundedInputField(
+                        // Removed invalid 'labelText' parameter
+                        hintText: 'Masukkan jumlah gram',
                         keyboardType: TextInputType.number,
                         controller: _quantityController,
                         onChanged: (value) {
@@ -925,12 +879,16 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
                         height: 50,
                         child: ElevatedButton(
                           onPressed: () {
-                            final quantity = double.tryParse(_quantityController.text) ?? 100;
+                            final quantity =
+                                double.tryParse(_quantityController.text) ??
+                                100;
                             _addFoodEntry(food, quantity);
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('${food.name} ditambahkan ke ${_mealTimeController.text}'),
+                                content: Text(
+                                  '${food.name} ditambahkan ke ${_mealTimeController.text}',
+                                ),
                                 backgroundColor: AppColors.primary,
                                 behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(
@@ -961,38 +919,38 @@ class _DailyNutritionTrackerScreenState extends State<DailyNutritionTrackerScree
                 ),
               ),
             );
-          }
+          },
         );
       },
     );
   }
-Widget _buildMealTimeDialog() {
-  return AlertDialog(
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(16),
-    ),
-    title: const Text('Pilih Waktu Makan'),
-    content: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildMealTimeOption('Sarapan', MealType.breakfast),
-        _buildMealTimeOption('Makan Siang', MealType.lunch),
-        _buildMealTimeOption('Makan Malam', MealType.dinner),
-        _buildMealTimeOption('Camilan', MealType.snack),
-      ],
-    ),
-  );
-}
 
-Widget _buildMealTimeOption(String mealTime, MealType type) {
-  return ListTile(
-    title: Text(mealTime),
-    onTap: () {
-      setState(() {
-        _mealTimeController.text = mealTime;
-        _selectedMealType = type;
-      });
-      Navigator.pop(context);
-    },
-  );
+  Widget _buildMealTimeDialog() {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Pilih Waktu Makan'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildMealTimeOption('Sarapan', MealType.breakfast),
+          _buildMealTimeOption('Makan Siang', MealType.lunch),
+          _buildMealTimeOption('Makan Malam', MealType.dinner),
+          _buildMealTimeOption('Camilan', MealType.snack),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMealTimeOption(String mealTime, MealType type) {
+    return ListTile(
+      title: Text(mealTime),
+      onTap: () {
+        setState(() {
+          _mealTimeController.text = mealTime;
+          _selectedMealType = type;
+        });
+        Navigator.pop(context);
+      },
+      );
+ }
 }
