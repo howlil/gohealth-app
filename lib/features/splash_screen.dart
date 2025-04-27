@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'home/home_screen.dart';
+import '../configs/routes.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -104,9 +104,7 @@ class _SplashScreenState extends State<SplashScreen>
   void _navigateToHomeScreen() {
     Future.delayed(const Duration(seconds: 1), () {
       if (!mounted) return; // Check if widget is still mounted
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+      Navigator.of(context).pushReplacementNamed(AppRoutes.home);
     });
   }
   

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../widgets/navigations/custom_bottom_nav_bar.dart';
-import '../../configs/routes.dart';
 
 class AppLayout extends StatelessWidget {
   final Widget child;
@@ -45,60 +44,35 @@ class AppLayout extends StatelessWidget {
         elevation: 0,
         backgroundColor: Colors.white,
         automaticallyImplyLeading: showBackButton,
-        leading: showBackButton 
-            ? IconButton(
-                icon: const Icon(
-                  Icons.arrow_back_ios,
-                  color: Color(0xFF2ECC71),
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              )
-            : null,
+        leading:
+            showBackButton
+                ? IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios,
+                    color: Color(0xFF2ECC71),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                )
+                : null,
         actions: actions,
       ),
-      
+
       // Content Area
       body: SafeArea(
         bottom: false, // Karena bottom bar custom
         child: child,
       ),
-      
-      // Custom Bottom Navigation Bar
-      bottomNavigationBar: showBottomNavBar 
-          ? CustomBottomNavBar(
-              currentIndex: currentIndex,
-              onTabChanged: (index) => _navigateToTab(context, index),
-            )
-          : null,
-      
+
+      bottomNavigationBar:
+          showBottomNavBar
+              ? CustomBottomNavBar(
+                currentIndex: currentIndex,
+                onTabChanged: null, // We're not using this callback anymore
+              )
+              : null,
       // Optional Floating Action Button
       floatingActionButton: floatingActionButton,
       floatingActionButtonLocation: floatingActionButtonLocation,
-    );
-  }
-
-  // Navigasi ke halaman sesuai dengan tab yang dipilih
-  void _navigateToTab(BuildContext context, int index) {
-    if (index == currentIndex) return; // Jika sudah di tab yang sama, tidak perlu navigasi
-    
-    String route;
-    switch (index) {
-      case 0:
-        route = AppRoutes.home;
-        break;
-      case 1:
-        route = AppRoutes.nutrition; 
-        break;
-      case 2:
-        route = AppRoutes.profile;
-        break;
-      default:
-        route = AppRoutes.home;
-    }
-  
-    Navigator.of(context).pushNamedAndRemoveUntil(
-      route, 
-      (Route<dynamic> route) => false // Menghapus semua route sebelumnya dari stack
     );
   }
 }

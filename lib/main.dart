@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'features/splash_screen.dart';
 import 'configs/routes.dart';
 import 'core/utils/app_colors.dart';
 
@@ -28,7 +27,6 @@ class MyApp extends StatelessWidget {
         primaryColor: AppColors.primary,
         fontFamily: 'Poppins',
       ),
-      home: const SplashScreen(),
       onGenerateRoute: AppRoutes.generateRoute,
       initialRoute: AppRoutes.splash,
     );
