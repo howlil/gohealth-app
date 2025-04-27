@@ -59,6 +59,14 @@ class _DailyNutritionTrackerScreenState
   final List<String> _tabs = ['Ringkasan Gizi', 'Makanan Hari Ini'];
   MealType _selectedMealType = MealType.breakfast;
 
+  // Map to store meal type labels
+  final Map<MealType, String> _mealTypeLabels = {
+    MealType.breakfast: 'Sarapan',
+    MealType.lunch: 'Makan Siang',
+    MealType.dinner: 'Makan Malam',
+    MealType.snack: 'Camilan',
+  };
+
   List<Food> _searchResults = [];
   Food? _selectedFood;
 
@@ -139,7 +147,7 @@ class _DailyNutritionTrackerScreenState
   void initState() {
     super.initState();
     _dateController.text = DateFormat('d MMMM yyyy').format(_selectedDate);
-    _mealTimeController.text = 'Sarapan';
+    _mealTimeController.text = _mealTypeLabels[_selectedMealType] ?? 'Sarapan';
 
     // Menambahkan contoh makanan yang sudah dimasukkan
     _foodEntries.add(
@@ -212,6 +220,70 @@ class _DailyNutritionTrackerScreenState
     _mealTimeController.dispose();
     _quantityController.dispose();
     super.dispose();
+  }
+
+  // Date picker functionality
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
+            ),
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _dateController.text = DateFormat('d MMMM yyyy').format(_selectedDate);
+      });
+    }
+  }
+
+  // Meal type dropdown functionality
+  void _selectMealType() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Pilih Waktu Makan'),
+          content: SizedBox(
+            width: double.minPositive,
+            child: ListView(
+              shrinkWrap: true,
+              children: _mealTypeLabels.entries.map((entry) {
+                return ListTile(
+                  title: Text(entry.value),
+                  onTap: () {
+                    setState(() {
+                      _selectedMealType = entry.key;
+                      _mealTimeController.text = entry.value;
+                    });
+                    Navigator.pop(context);
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _searchFood(String query) {
@@ -359,8 +431,9 @@ class _DailyNutritionTrackerScreenState
                 child: RoundedInputField(
                   controller: _dateController,
                   hintText: 'Pilih tanggal',
-                  // Removed invalid 'readOnly' and 'onTap' parameters
-                  // Removed 'labelText' parameter
+                  readOnly: true,
+                  suffixIcon: Icons.calendar_today,
+                  onSuffixIconTap: _selectDate,
                 ),
               ),
               const SizedBox(width: 12),
@@ -368,8 +441,9 @@ class _DailyNutritionTrackerScreenState
                 child: RoundedInputField(
                   controller: _mealTimeController,
                   hintText: 'Pilih waktu makan',
-                  // Removed invalid 'readOnly' and 'onTap' parameters
-                  // Removed 'labelText' parameter
+                  readOnly: true,
+                  suffixIcon: Icons.arrow_drop_down,
+                  onSuffixIconTap: _selectMealType,
                 ),
               ),
             ],
@@ -471,7 +545,7 @@ class _DailyNutritionTrackerScreenState
           const SizedBox(height: 24),
 
           // Nutrient bars
-          NutrientBar( // Changed from NutrientBar to NutrientBar
+          NutrientBar(
             label: 'Protein',
             value: totalProtein,
             maxValue: targetProtein,
@@ -479,7 +553,7 @@ class _DailyNutritionTrackerScreenState
             color: AppColors.secondary,
           ),
           const SizedBox(height: 16),
-          NutrientBar( // Changed from NutrientBar to NutrientBar
+          NutrientBar(
             label: 'Karbohidrat',
             value: totalCarbs,
             maxValue: targetCarbs,
@@ -487,7 +561,7 @@ class _DailyNutritionTrackerScreenState
             color: AppColors.primary,
           ),
           const SizedBox(height: 16),
-          NutrientBar( // Changed from NutrientBar to NutrientBar
+          NutrientBar(
             label: 'Lemak',
             value: totalFat,
             maxValue: targetFat,
@@ -495,7 +569,7 @@ class _DailyNutritionTrackerScreenState
             color: Colors.orange,
           ),
           const SizedBox(height: 16),
-          NutrientBar( // Changed from NutrientBar to NutrientBar
+          NutrientBar(
             label: 'Serat',
             value: totalFiber,
             maxValue: targetFiber,
@@ -594,9 +668,6 @@ class _DailyNutritionTrackerScreenState
     // Calculate percentages
     final totalNutrients = carbs + protein + fat;
     final carbsPercentage = totalNutrients > 0 ? carbs / totalNutrients : 0;
-    // Remove unused variables
-    //final proteinPercentage = totalNutrients > 0 ? protein / totalNutrients : 0;
-    //final fatPercentage = totalNutrients > 0 ? fat / totalNutrients : 0;
 
     return Stack(
       alignment: Alignment.center,
@@ -853,7 +924,6 @@ class _DailyNutritionTrackerScreenState
                       ),
                       const SizedBox(height: 20),
                       RoundedInputField(
-                        // Removed invalid 'labelText' parameter
                         hintText: 'Masukkan jumlah gram',
                         keyboardType: TextInputType.number,
                         controller: _quantityController,
@@ -896,7 +966,7 @@ class _DailyNutritionTrackerScreenState
                               ),
                             );
                           },
-                          style: ElevatedButton.styleFrom(
+style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
@@ -923,22 +993,6 @@ class _DailyNutritionTrackerScreenState
     );
   }
 
-  Widget _buildMealTimeDialog() {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Pilih Waktu Makan'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _buildMealTimeOption('Sarapan', MealType.breakfast),
-          _buildMealTimeOption('Makan Siang', MealType.lunch),
-          _buildMealTimeOption('Makan Malam', MealType.dinner),
-          _buildMealTimeOption('Camilan', MealType.snack),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMealTimeOption(String mealTime, MealType type) {
     return ListTile(
       title: Text(mealTime),
@@ -949,6 +1003,6 @@ class _DailyNutritionTrackerScreenState
         });
         Navigator.pop(context);
       },
-      );
- }
+    );
+  }
 }

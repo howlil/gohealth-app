@@ -16,6 +16,7 @@ class RoundedInputField extends StatelessWidget {
   final int? maxLines;
   final int? minLines;
   final bool enabled;
+  final bool readOnly;
   final FocusNode? focusNode;
 
   const RoundedInputField({
@@ -33,6 +34,7 @@ class RoundedInputField extends StatelessWidget {
     this.maxLines = 1,
     this.minLines,
     this.enabled = true,
+    this.readOnly = false,
     this.focusNode,
   });
 
@@ -45,6 +47,7 @@ class RoundedInputField extends StatelessWidget {
       maxLines: maxLines,
       minLines: minLines,
       enabled: enabled,
+      readOnly: readOnly,
       focusNode: focusNode,
       style: const TextStyle(fontSize: 14),
       decoration: InputDecoration(
