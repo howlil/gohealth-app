@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'features/splash_screen.dart';
 import 'configs/routes.dart';
+import 'core/utils/app_colors.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,7 +25,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'GoHealth',
       theme: ThemeData(
-        primaryColor: const Color(0xFF2ECC71),
+        primaryColor: AppColors.primary,
         fontFamily: 'Poppins',
       ),
       home: const SplashScreen(),

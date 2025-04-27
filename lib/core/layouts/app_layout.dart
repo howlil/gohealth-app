@@ -87,8 +87,7 @@ class AppLayout extends StatelessWidget {
         route = AppRoutes.home;
         break;
       case 1:
-        // Tab tengah bisa jadi halaman add/service atau lainnya
-        route = AppRoutes.nutrition; // Ganti dengan route yang sesuai untuk tab tengah
+        route = AppRoutes.nutrition; 
         break;
       case 2:
         route = AppRoutes.profile;
@@ -96,8 +95,10 @@ class AppLayout extends StatelessWidget {
       default:
         route = AppRoutes.home;
     }
-    
-    // Navigasi ke halaman yang dipilih
-    Navigator.of(context).pushReplacementNamed(route);
+  
+    Navigator.of(context).pushNamedAndRemoveUntil(
+      route, 
+      (Route<dynamic> route) => false // Menghapus semua route sebelumnya dari stack
+    );
   }
 }

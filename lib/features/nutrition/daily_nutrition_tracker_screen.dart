@@ -1,4 +1,3 @@
-// lib/features/nutrition/daily_nutrition_tracker_screen.dart
 import 'dart:ui'; // Added to fix ImageFilter error
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -7,7 +6,7 @@ import '../../core/layouts/app_layout.dart';
 import '../../core/utils/app_colors.dart';
 import '../../core/widgets/glass_card.dart';
 import '../../core/widgets/rounded_input_field.dart';
-import '../../core/widgets/nutrient_bar.dart'; // Changed from nutrient_bar.dart
+import '../../core/widgets/nutrient_bar.dart';
 import '../foods/models/food_model.dart';
 import '../../core/widgets/round_search_field.dart';
 import '../../core/widgets/tab_selector.dart';
@@ -18,7 +17,7 @@ class FoodLogEntry {
   final Food food;
   final MealType mealType;
   final DateTime timestamp;
-  final double quantity; // in grams
+  final double quantity; 
 
   FoodLogEntry({
     required this.food,
@@ -63,7 +62,6 @@ class _DailyNutritionTrackerScreenState
   List<Food> _searchResults = [];
   Food? _selectedFood;
 
-  // Sample list of foods from the food database
   final List<Food> _foodDatabase = [
     Food(
       name: 'Apel',
@@ -135,7 +133,6 @@ class _DailyNutritionTrackerScreenState
     ),
   ];
 
-  // Data makanan yang telah dimasukkan
   final List<FoodLogEntry> _foodEntries = [];
 
   @override
@@ -268,7 +265,8 @@ class _DailyNutritionTrackerScreenState
     return AppLayout(
       title: 'Pelacak Gizi Harian',
       backgroundColor: const Color(0xFFF8F9FA),
-      showBackButton: true,
+      showBackButton: false,
+      currentIndex: 1,
       child: Stack(
         children: [
           // Background gradients

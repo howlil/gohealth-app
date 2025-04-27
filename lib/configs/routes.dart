@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../features/splash_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/foods/food_screen.dart';
 import '../features/ibm/ibm_screen.dart';
 import '../features/nutrition/daily_nutrition_tracker_screen.dart';
 
@@ -25,6 +26,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const IBMScreen());
       case nutrition:
         return MaterialPageRoute(builder: (_) => const DailyNutritionTrackerScreen());
+      case food:
+        return MaterialPageRoute(builder: (_) => const FoodScreen());
       case profile:
         return MaterialPageRoute(builder: (_) => const ProfileScreen());
       default:

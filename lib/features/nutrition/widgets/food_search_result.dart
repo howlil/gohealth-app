@@ -1,4 +1,3 @@
-// lib/features/nutrition/widgets/food_search_result.dart
 import 'package:flutter/material.dart';
 import '../../../features/foods/models/food_model.dart';
 

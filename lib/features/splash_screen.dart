@@ -133,7 +133,6 @@ class _SplashScreenState extends State<SplashScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Animated bubbles in background
             ...List.generate(
               _bubbleAnimations.length,
               (index) => AnimatedBuilder(
@@ -157,7 +156,6 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
             
-            // Glassmorphic center card
             Center(
               child: AnimatedBuilder(
                 animation: _controller,
