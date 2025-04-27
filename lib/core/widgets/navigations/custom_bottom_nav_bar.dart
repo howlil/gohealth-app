@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'nav_items.dart';
-import '../../../configs/routes.dart';
+import 'package:go_router/go_router.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
-  final Function(int)? onTabChanged;
 
   const CustomBottomNavBar({
     super.key,
     required this.currentIndex,
-    this.onTabChanged,
   });
 
   @override
@@ -30,7 +28,7 @@ class CustomBottomNavBar extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-             NavItems(
+            NavItems(
               icon: Icons.home_outlined,
               iconSelected: Icons.home,
               isSelected: currentIndex == 0,
@@ -54,29 +52,14 @@ class CustomBottomNavBar extends StatelessWidget {
     );
   }
 
-  /// Handle tab change and call the callback if provided
   void _handleTabChange(BuildContext context, int index) {
-    if (currentIndex == index) return; // Don't navigate if already on this tab
+    if (currentIndex == index) return; 
 
-    String route;
-    switch (index) {
-      case 0:
-        route = AppRoutes.home;
-        break;
-      case 1:
-        route = AppRoutes.nutrition;
-        break;
-      case 2:
-        route = AppRoutes.profile;
-        break;
-      default:
-        route = AppRoutes.home;
-    }
-    Navigator.of(context).pushReplacementNamed(route);
-
-    // Also call the onTabChanged callback if provided (for backward compatibility)
-    if (onTabChanged != null) {
-      onTabChanged!(index);
+    final routes = ['/home', '/nutrition', '/profile'];
+    
+    // Using context.go instead of context.goNamed for better stability
+    if (index >= 0 && index < routes.length) {
+      context.go(routes[index]);
     }
   }
 }

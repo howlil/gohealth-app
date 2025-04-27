@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'configs/routes.dart';
+import 'configs/router_config.dart';
 import 'core/utils/app_colors.dart';
 
 void main() {
@@ -20,15 +20,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'GoHealth',
       theme: ThemeData(
         primaryColor: AppColors.primary,
         fontFamily: 'Poppins',
+        useMaterial3: true,
       ),
-      onGenerateRoute: AppRoutes.generateRoute,
-      initialRoute: AppRoutes.splash,
+      routerConfig: AppRouter.router,
     );
   }
 }

@@ -7,7 +7,7 @@ import '../../core/widgets/glass_card.dart';
 import 'widgets/stat_chip.dart';
 import 'widgets/action_glass_card.dart';
 import '../ibm/ibm_screen.dart';
-import '../foods/food_screen.dart';
+import 'package:go_router/go_router.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -63,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          
+
           // Main content
           SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -95,17 +95,11 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         const Text(
           "Hey Ulil",
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         Text(
           'Selamat datang di GoHealth',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade600,
-          ),
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
         ),
       ],
     );
@@ -154,10 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               const Text(
                 'Calories Tracker',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -312,12 +303,7 @@ class _HomeScreenState extends State<HomeScreen> {
             subtitle: 'Control Your Weight',
             icon: Icons.monitor_weight_outlined,
             color: AppColors.secondary,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) =>  IBMScreen()),
-              );
-            },
+            onTap: () => context.go('/ibm'),
           ),
         ),
         const SizedBox(width: 12),
@@ -327,12 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
             subtitle: 'Healthy Food List',
             icon: Icons.restaurant_outlined,
             color: AppColors.primary,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => FoodScreen()),
-              );
-            },
+            onTap: () => context.go('/food'),
           ),
         ),
       ],
@@ -378,35 +359,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Column(
       children: [
-        Icon(
-          icon,
-          color: color,
-          size: 20,
-        ),
+        Icon(icon, color: color, size: 20),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         Text(
           title,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade600,
-          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
         ),
       ],
     );
   }
 
   Widget _buildDivider() {
-    return Container(
-      height: 40,
-      width: 1,
-      color: Colors.grey.shade300,
-    );
+    return Container(height: 40, width: 1, color: Colors.grey.shade300);
   }
 }

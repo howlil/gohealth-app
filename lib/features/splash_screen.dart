@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../configs/routes.dart';
+import 'package:go_router/go_router.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -101,13 +101,12 @@ class _SplashScreenState extends State<SplashScreen>
   }
   
   // Separate method for navigation to avoid BuildContext across async gap
-  void _navigateToHomeScreen() {
+void _navigateToHomeScreen() {
     Future.delayed(const Duration(seconds: 1), () {
       if (!mounted) return; // Check if widget is still mounted
-      Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+      context.go('/home'); // Using go_router for navigation
     });
   }
-  
   @override
   void dispose() {
     _controller.dispose();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/navigations/custom_bottom_nav_bar.dart';
+import 'package:go_router/go_router.dart';
 
 class AppLayout extends StatelessWidget {
   final Widget child;
@@ -51,8 +52,18 @@ class AppLayout extends StatelessWidget {
                     Icons.arrow_back_ios,
                     color: Color(0xFF2ECC71),
                   ),
-                  onPressed: () => Navigator.of(context).pop(),
-                )
+                  onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context);
+                  } else {
+                    try {
+                      context.pop();
+                    } catch (e) {
+                      context.go('/home');
+                    }
+                  }
+                },
+              )
                 : null,
         actions: actions,
       ),
@@ -65,10 +76,7 @@ class AppLayout extends StatelessWidget {
 
       bottomNavigationBar:
           showBottomNavBar
-              ? CustomBottomNavBar(
-                currentIndex: currentIndex,
-                onTabChanged: null, // We're not using this callback anymore
-              )
+              ? CustomBottomNavBar(currentIndex: currentIndex)
               : null,
       // Optional Floating Action Button
       floatingActionButton: floatingActionButton,
