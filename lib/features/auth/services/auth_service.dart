@@ -1,4 +1,3 @@
-// lib/features/auth/services/auth_service.dart (Fixed with Constants)
 import 'dart:convert';
 import 'dart:developer';
 import 'package:gohealth/core/constants/api_endpoints.dart';
@@ -6,17 +5,31 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../configs/env_config.dart';
 import '../models/auth_models.dart';
 
 class AuthService {
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email', 'profile'],
-    serverClientId: AppConstants.googleWebClientId,
-  );
+  late final GoogleSignIn _googleSignIn;
+  
+  AuthService() {
+    _initializeGoogleSignIn();
+  }
+  
+  void _initializeGoogleSignIn() {
+    _googleSignIn = GoogleSignIn(
+      scopes: ['email', 'profile'],
+      serverClientId: EnvConfig.googleWebClientId,
+    );
+  }
 
   // Google Sign In
   Future<AuthResponse?> signInWithGoogle() async {
     try {
+      // Validate client ID is set
+      if (EnvConfig.googleWebClientId.contains('NOT_SET')) {
+        throw Exception('Google Client ID not configured properly');
+      }
+      
       // Request Google Sign In
       final GoogleSignInAccount? googleAccount = await _googleSignIn.signIn();
       if (googleAccount == null) return null;
