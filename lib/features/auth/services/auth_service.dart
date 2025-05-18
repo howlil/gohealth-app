@@ -52,7 +52,7 @@ class AuthService {
   // Authenticate with backend
   Future<AuthResponse> _authenticateWithBackend(String idToken) async {
     final response = await http.post(
-      Uri.parse('${AppConstants.apiUrl}${ApiEndpoints.googleAuth}'),
+      Uri.parse('${EnvConfig.apiBaseUrl}${ApiEndpoints.googleAuth}'),
       headers: {
         'Content-Type': 'application/json',
       },
@@ -112,7 +112,7 @@ class AuthService {
 
     try {
       final response = await http.post(
-        Uri.parse('${AppConstants.apiUrl}${ApiEndpoints.refreshToken}'),
+        Uri.parse('${EnvConfig.apiBaseUrl}${ApiEndpoints.refreshToken}'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -155,7 +155,7 @@ class AuthService {
 
     try {
       final response = await http.get(
-        Uri.parse('${AppConstants.apiUrl}${ApiEndpoints.currentUser}'),
+        Uri.parse('${EnvConfig.apiBaseUrl}${ApiEndpoints.currentUser}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

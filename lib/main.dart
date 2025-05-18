@@ -1,19 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'configs/env_config.dart' show EnvConfig;
 import 'configs/router_config.dart';
 import 'core/utils/app_colors.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'features/auth/providers/auth_provider.dart';
 
-void main() {
+void main() async{
   WidgetsFlutterBinding.ensureInitialized();
-
+   
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+
+   try {
+    await EnvConfig.load();
+  } catch (e) {
+    debugPrint('Warning: Failed to load environment config: $e');
+  }
+  
   runApp(const MyApp());
 }
 

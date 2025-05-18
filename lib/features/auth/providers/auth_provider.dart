@@ -8,16 +8,20 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   bool _isLoading = false;
   bool _isLoggedIn = false;
+  bool _isInitialized = false;
   String? _error;
 
   // Getters
   User? get user => _user;
   bool get isLoading => _isLoading;
   bool get isLoggedIn => _isLoggedIn;
+  bool get isInitialized => _isInitialized;
   String? get error => _error;
 
   // Initialize auth state
   Future<void> init() async {
+    if (_isInitialized) return; // Prevent multiple initialization
+    
     _setLoading(true);
     
     try {
@@ -30,8 +34,10 @@ class AuthProvider extends ChangeNotifier {
           _user = currentUser;
         }
       }
+      _isInitialized = true;
     } catch (e) {
       _error = e.toString();
+      debugPrint('Auth initialization error: $e');
     } finally {
       _setLoading(false);
     }
@@ -54,6 +60,7 @@ class AuthProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = e.toString();
+      debugPrint('Google sign in error: $e');
       _setLoading(false);
       return false;
     }
@@ -70,6 +77,7 @@ class AuthProvider extends ChangeNotifier {
       _clearError();
     } catch (e) {
       _error = e.toString();
+      debugPrint('Logout error: $e');
     } finally {
       _setLoading(false);
     }
@@ -85,6 +93,7 @@ class AuthProvider extends ChangeNotifier {
       }
     } catch (e) {
       _error = e.toString();
+      debugPrint('Get current user error: $e');
       notifyListeners();
     }
   }
