@@ -1,7 +1,10 @@
+// lib/features/splash_screen.dart (Updated)
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'auth/providers/auth_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -94,19 +97,28 @@ class _SplashScreenState extends State<SplashScreen>
       );
     }
     
-    // Start animation and navigate to next screen after completion
+    // Start animation and navigate after completion
     _controller.forward().then((_) {
-      _navigateToHomeScreen();
+      _navigateAfterSplash();
     });
   }
   
-  // Separate method for navigation to avoid BuildContext across async gap
-void _navigateToHomeScreen() {
+  // Navigation logic based on authentication state
+  void _navigateAfterSplash() {
     Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return; // Check if widget is still mounted
-      context.go('/home'); // Using go_router for navigation
+      if (!mounted) return;
+      
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // Check if user is already logged in
+      if (authProvider.isLoggedIn) {
+        context.go('/home');
+      } else {
+        context.go('/login');
+      }
     });
   }
+  
   @override
   void dispose() {
     _controller.dispose();
@@ -174,15 +186,15 @@ void _navigateToHomeScreen() {
                               width: MediaQuery.of(context).size.width * 0.8,
                               height: MediaQuery.of(context).size.width * 0.8,
                               decoration: BoxDecoration(
-                                color: Colors.white.withAlpha(76), // Mengganti withOpacity
+                                color: Colors.white.withAlpha(76),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: Colors.white.withAlpha(128), // Mengganti withOpacity
+                                  color: Colors.white.withAlpha(128),
                                   width: 1.5,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withAlpha(13), // Mengganti withOpacity
+                                    color: Colors.black.withAlpha(13),
                                     blurRadius: 20,
                                     spreadRadius: 5,
                                   ),
@@ -201,7 +213,7 @@ void _navigateToHomeScreen() {
                                         child: Container(
                                           padding: const EdgeInsets.all(16),
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withAlpha(128), // Mengganti withOpacity
+                                            color: Colors.white.withAlpha(128),
                                             shape: BoxShape.circle,
                                           ),
                                           child: const Icon(
@@ -263,7 +275,7 @@ void _navigateToHomeScreen() {
                                           "Kesehatan dalam genggaman",
                                           style: TextStyle(
                                             fontSize: 14,
-                                            color: Colors.black.withAlpha(178), // Mengganti withOpacity
+                                            color: Colors.black.withAlpha(178),
                                           ),
                                         ),
                                       );
@@ -285,7 +297,7 @@ void _navigateToHomeScreen() {
                                           child: LinearProgressIndicator(
                                             value: _controller.value,
                                             backgroundColor: 
-                                                Colors.white.withAlpha(76), // Mengganti withOpacity
+                                                Colors.white.withAlpha(76),
                                             valueColor: 
                                                 const AlwaysStoppedAnimation<Color>(
                                               Color(0xFF2ECC71),

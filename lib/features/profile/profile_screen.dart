@@ -1,11 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/layouts/app_layout.dart';
 import '../../../core/utils/app_colors.dart';
 import 'widgets/profile_avatar.dart';
 import 'widgets/glass_container.dart';
 import '../../core/widgets/rounded_input_field.dart';
 import '../../core/widgets/rounded_button.dart';
+import '../auth/providers/auth_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,11 +19,30 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   // Controllers for form fields
-  final TextEditingController _nameController = TextEditingController(text: 'Ulil');
-  final TextEditingController _ageController = TextEditingController(text: '21');
-  final TextEditingController _heightController = TextEditingController(text: '170');
-  final TextEditingController _weightController = TextEditingController(text: '55');
+  late TextEditingController _nameController;
+  late TextEditingController _ageController;
+  late TextEditingController _heightController;
+  late TextEditingController _weightController;
   String _gender = 'Pria';
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Initialize controllers
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    
+    _nameController = TextEditingController(text: user?.name ?? 'Ulil');
+    _ageController = TextEditingController(text: user?.age?.toString() ?? '21');
+    _heightController = TextEditingController(text: user?.height?.toString() ?? '170');
+    _weightController = TextEditingController(text: user?.weight?.toString() ?? '55');
+    
+    // Set gender based on user data
+    if (user?.gender != null) {
+      _gender = user!.gender == 'MALE' ? 'Pria' : 'Wanita';
+    }
+  }
 
   @override
   void dispose() {
@@ -29,6 +51,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _heightController.dispose();
     _weightController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleLogout() async {
+    final confirmed = await _showLogoutConfirmation();
+    if (confirmed) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await authProvider.logout();
+      if (mounted) {
+        context.go('/login');
+      }
+    }
+  }
+
+  Future<bool> _showLogoutConfirmation() async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text('Konfirmasi Keluar'),
+          content: const Text('Apakah Anda yakin ingin keluar dari akun?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.error,
+              ),
+              child: const Text('Keluar'),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
   }
 
   @override
@@ -141,35 +202,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 16),
                   
                   // Logout button
-                  GlassContainer(
-                    color: Colors.red.withOpacity(0.05),
-                    borderColor: Colors.red.withOpacity(0.2),
-                    child: InkWell(
-                      onTap: _logout,
-                      borderRadius: BorderRadius.circular(12),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.logout_rounded,
-                              color: Colors.red.shade700,
-                              size: 20,
+                  Consumer<AuthProvider>(
+                    builder: (context, authProvider, child) {
+                      // Only show logout if user is logged in
+                      if (!authProvider.isLoggedIn) {
+                        return const SizedBox.shrink();
+                      }
+                      
+                      return GlassContainer(
+                        color: Colors.red.withOpacity(0.05),
+                        borderColor: Colors.red.withOpacity(0.2),
+                        child: InkWell(
+                          onTap: authProvider.isLoading ? null : _handleLogout,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (authProvider.isLoading)
+                                  SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.red.shade700,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Icon(
+                                    Icons.logout_rounded,
+                                    color: Colors.red.shade700,
+                                    size: 20,
+                                  ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  authProvider.isLoading ? "Keluar..." : "Keluar",
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.red.shade700,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              "Keluar",
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.red.shade700,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                   
                   const SizedBox(height: 24),
@@ -183,32 +265,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
-    return Column(
-      children: [
-        const SizedBox(height: 12),
-        ProfileAvatar(
-          imageUrl: null, // Jika null, akan menggunakan ikon default
-          size: 80,
-          onTap: () {
-            // Handle tap on profile pic
-          },
-        ),
-        const SizedBox(height: 8),
-        Text(
-          _nameController.text,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          "user@email.com",
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade600,
-          ),
-        ),
-      ],
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        final user = authProvider.user;
+        
+        return Column(
+          children: [
+            const SizedBox(height: 12),
+            ProfileAvatar(
+              imageUrl: user?.profileImage,
+              size: 80,
+              onTap: () {
+                // Handle tap on profile pic
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              user?.name ?? 'User',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              user?.email ?? "user@email.com",
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            if (!authProvider.isLoggedIn)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.warning.withOpacity(0.3),
+                  ),
+                ),
+                child: Text(
+                  'Mode Tamu',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.warning,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -346,37 +454,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         margin: const EdgeInsets.all(10),
       ),
-    );
-  }
-
-  void _logout() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Konfirmasi'),
-          content: const Text('Apakah Anda yakin ingin keluar?'),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Navigator.of(context).pushReplacementNamed('/login');
-              },
-              child: const Text(
-                'Keluar',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }
