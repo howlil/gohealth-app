@@ -5,44 +5,29 @@ class EnvConfig {
     if (_isLoaded) return;
     
     try {
-      // For now, we'll just mark as loaded since flutter_dotenv might cause issues
-      // In production, you can add dotenv loading here
+      // Use Flutter dotenv if available
+      // await dotenv.load(fileName: ".env");
       _isLoaded = true;
     } catch (e) {
-      // Don't throw, just log the error
-      print('Info: Environment file not found, using build-time configuration');
+      print('Info: Environment file not found, using hardcoded configuration');
       _isLoaded = true;
     }
   }
   
   static String get googleWebClientId {
-    // Try build-time configuration first
-    const webClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
-    if (webClientId.isNotEmpty) return webClientId;
-    
-    // Fall back to a placeholder that will show an error
-    return 'GOOGLE_WEB_CLIENT_ID_NOT_CONFIGURED';
+    // These values should match your provided client IDs
+    return '845113946067-ukaickbhgki6n6phesnacsa9b4sgc8hu.apps.googleusercontent.com';
   }
   
   static String get googleAndroidClientId {
-    const androidClientId = String.fromEnvironment('GOOGLE_ANDROID_CLIENT_ID');
-    if (androidClientId.isNotEmpty) return androidClientId;
-    
-    return 'GOOGLE_ANDROID_CLIENT_ID_NOT_CONFIGURED';
+    return '845113946067-hvg4pfb2ncjicg8mh8en5ouckugkdbeh.apps.googleusercontent.com';
   }
   
   static String get googleIosClientId {
-    const iosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
-    if (iosClientId.isNotEmpty) return iosClientId;
-    
-    return 'GOOGLE_IOS_CLIENT_ID_NOT_CONFIGURED';
+    return '845113946067-hvg4pfb2ncjicg8mh8en5ouckugkdbeh.apps.googleusercontent.com';
   }
   
   static String get apiBaseUrl {
-    const baseUrl = String.fromEnvironment('API_BASE_URL');
-    if (baseUrl.isNotEmpty) return baseUrl;
-    
-    // Default API URL
-    return 'http://34.101.52.148:3000';
+    return 'http://34.128.76.161:3000/api/v1';
   }
 }

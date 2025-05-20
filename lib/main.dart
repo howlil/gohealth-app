@@ -10,7 +10,6 @@ import 'features/auth/providers/auth_provider.dart';
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
-   
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,

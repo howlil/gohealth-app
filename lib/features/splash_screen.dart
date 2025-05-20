@@ -104,21 +104,31 @@ class _SplashScreenState extends State<SplashScreen>
   }
   
   // Navigation logic based on authentication state
-  void _navigateAfterSplash() {
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
-      
+void _navigateAfterSplash() {
+  Future.delayed(const Duration(seconds: 1), () {
+    if (!mounted) return;
+    
+    try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // More detailed logging during splash navigation
+      debugPrint('Navigating after splash. isLoggedIn: ${authProvider.isLoggedIn}, isInitialized: ${authProvider.isInitialized}');
       
       // Check if user is already logged in
       if (authProvider.isLoggedIn) {
+        debugPrint('User is logged in, navigating to home');
         context.go('/home');
       } else {
+        debugPrint('User is not logged in, navigating to login');
         context.go('/login');
       }
-    });
-  }
-  
+    } catch (e) {
+      debugPrint('Error during splash navigation: $e');
+      // Default to login on error
+      context.go('/login');
+    }
+  });
+}
   @override
   void dispose() {
     _controller.dispose();

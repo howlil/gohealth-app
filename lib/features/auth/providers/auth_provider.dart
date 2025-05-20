@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/auth_models.dart';
 import '../services/auth_service.dart';
 
-class AuthProvider extends ChangeNotifier {
+class AuthProvider extends ChangeNotifier implements Listenable {
   final AuthService _authService = AuthService();
   
   User? _user;
@@ -25,13 +25,19 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
     
     try {
+      debugPrint('Initializing auth provider');
       _isLoggedIn = await _authService.isLoggedIn();
+      debugPrint('User is logged in: $_isLoggedIn');
+      
       if (_isLoggedIn) {
         _user = await _authService.getStoredUser();
+        debugPrint('Loaded user: ${_user?.name}');
+        
         // Try to refresh user data
         final currentUser = await _authService.getCurrentUser();
         if (currentUser != null) {
           _user = currentUser;
+          debugPrint('Updated user data: ${_user?.name}');
         }
       }
       _isInitialized = true;
@@ -45,24 +51,33 @@ class AuthProvider extends ChangeNotifier {
 
   // Sign in with Google
   Future<bool> signInWithGoogle() async {
-    _setLoading(true);
+    // Clear previous errors
     _clearError();
-
+    _setLoading(true);
+    
     try {
+      debugPrint('Starting Google sign in');
       final authResponse = await _authService.signInWithGoogle();
+      
       if (authResponse != null) {
+        debugPrint('Sign in successful: ${authResponse.data.user.name}');
         _user = authResponse.data.user;
         _isLoggedIn = true;
-        _setLoading(false);
+        notifyListeners();
         return true;
+      } else {
+        debugPrint('Sign in cancelled by user');
+        _error = 'Sign in was cancelled';
+        notifyListeners();
+        return false;
       }
-      _setLoading(false);
-      return false;
     } catch (e) {
-      _error = e.toString();
       debugPrint('Google sign in error: $e');
-      _setLoading(false);
+      _error = 'Failed to sign in: ${e.toString()}';
+      notifyListeners();
       return false;
+    } finally {
+      _setLoading(false);
     }
   }
 
@@ -71,10 +86,12 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
     
     try {
+      debugPrint('Logging out user');
       await _authService.logout();
       _user = null;
       _isLoggedIn = false;
       _clearError();
+      debugPrint('Logout successful');
     } catch (e) {
       _error = e.toString();
       debugPrint('Logout error: $e');
@@ -86,15 +103,16 @@ class AuthProvider extends ChangeNotifier {
   // Get current user
   Future<void> getCurrentUser() async {
     try {
+      debugPrint('Getting current user data');
       final currentUser = await _authService.getCurrentUser();
       if (currentUser != null) {
         _user = currentUser;
+        debugPrint('Updated user data: ${_user?.name}');
         notifyListeners();
       }
     } catch (e) {
       _error = e.toString();
       debugPrint('Get current user error: $e');
-      notifyListeners();
     }
   }
 

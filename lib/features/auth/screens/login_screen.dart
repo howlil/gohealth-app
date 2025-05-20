@@ -19,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   late Animation<Offset> _slideAnimation;
+  bool _isSigningIn = false;
 
   @override
   void initState() {
@@ -73,30 +74,69 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  Future<void> _handleGoogleSignIn() async {
+ Future<void> _handleGoogleSignIn() async {
+  if (_isSigningIn) return; // Prevent multiple sign-in attempts
+  
+  setState(() {
+    _isSigningIn = true;
+  });
+  
+  try {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.signInWithGoogle();
     
-    if (success && mounted) {
-      context.go('/home');
-    } else if (authProvider.error != null && mounted) {
-      _showErrorSnackBar(authProvider.error!);
-    }
-  }
-
-  void _showErrorSnackBar(String message) {
+    // Show loading indicator
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        margin: const EdgeInsets.all(16),
+      const SnackBar(
+        content: Text('Signing in with Google...'),
+        duration: Duration(seconds: 2),
       ),
     );
+    
+    final success = await authProvider.signInWithGoogle();
+    
+    if (mounted) {
+      if (success) {
+        // Navigate on success
+        context.go('/home');
+      } else if (authProvider.error != null) {
+        // Show detailed error
+        _showErrorSnackBar('Sign-in error: ${authProvider.error}');
+      } else {
+        // User likely cancelled
+        _showErrorSnackBar('Sign-in was cancelled');
+      }
+    }
+  } catch (e) {
+    if (mounted) {
+      _showErrorSnackBar('Sign-in failed: ${e.toString()}');
+    }
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isSigningIn = false;
+      });
+    }
   }
+}
+
+void _showErrorSnackBar(String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.red.shade700,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 4),
+      action: SnackBarAction(
+        label: 'OK',
+        textColor: Colors.white,
+        onPressed: () {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        },
+      ),
+    ),
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
