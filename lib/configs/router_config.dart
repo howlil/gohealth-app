@@ -5,7 +5,7 @@ import '../features/splash_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/providers/auth_provider.dart';
-import '../features/profile/profile_screen.dart';
+import '../features/profile/screens/profile_screen.dart';
 import '../features/foods/food_screen.dart';
 import '../features/ibm/ibm_screen.dart';
 import '../features/nutrition/daily_nutrition_tracker_screen.dart';

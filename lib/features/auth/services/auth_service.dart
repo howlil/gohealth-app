@@ -28,14 +28,14 @@ class AuthService {
 
   // Your Google Client IDs (consider moving these to an env config)
   static const String _webClientId =
-      '845113946067-ukaickbhgki6n6phesnacsa9b4sgc8hu.apps.googleusercontent.com';
+      '845113946067-e1q5mruppe349adma00c4gi9tvf2uqrl.apps.googleusercontent.com';
   static const String _androidClientId =
       '845113946067-hvg4pfb2ncjicg8mh8en5ouckugkdbeh.apps.googleusercontent.com';
   static const String _iosClientId =
       '845113946067-hvg4pfb2ncjicg8mh8en5ouckugkdbeh.apps.googleusercontent.com';
       
   // API base URL (move to env config)
-  static const String _apiBaseUrl = 'https://89f2-36-69-117-110.ngrok-free.app/api/v1';
+  static const String _apiBaseUrl = 'https://piglet-amused-willingly.ngrok-free.app/api/v1';
 
   AuthService() {
     _initializeGoogleSignIn();
