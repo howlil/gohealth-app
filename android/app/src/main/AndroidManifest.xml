@@ -5,6 +5,12 @@
         android:label="gohealth"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        
+        <!-- Add the Google Sign-In client ID as a separate meta-data tag -->
+        <meta-data
+            android:name="google-signin-client_id"
+            android:value="845113946067-ukaickbhgki6n6phesnacsa9b4sgc8hu.apps.googleusercontent.com" />
+            
         <activity
             android:name=".MainActivity"
             android:exported="true"

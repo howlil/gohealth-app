@@ -17,12 +17,7 @@ void main() async{
     ),
   );
 
-   try {
-    await EnvConfig.load();
-  } catch (e) {
-    debugPrint('Warning: Failed to load environment config: $e');
-  }
-  
+ 
   runApp(const MyApp());
 }
 

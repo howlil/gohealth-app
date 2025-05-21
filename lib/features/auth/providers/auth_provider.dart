@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../models/auth_models.dart';
 import '../services/auth_service.dart';
 
@@ -26,26 +27,51 @@ class AuthProvider extends ChangeNotifier implements Listenable {
     
     try {
       debugPrint('Initializing auth provider');
-      _isLoggedIn = await _authService.isLoggedIn();
-      debugPrint('User is logged in: $_isLoggedIn');
       
-      if (_isLoggedIn) {
-        _user = await _authService.getStoredUser();
-        debugPrint('Loaded user: ${_user?.name}');
-        
-        // Try to refresh user data
-        final currentUser = await _authService.getCurrentUser();
-        if (currentUser != null) {
-          _user = currentUser;
-          debugPrint('Updated user data: ${_user?.name}');
-        }
-      }
+      // Use compute for heavy operations
+      await Future.wait([
+        _initializeAuthState(),
+        _preloadUserData(),
+      ], eagerError: true);
+      
       _isInitialized = true;
     } catch (e) {
       _error = e.toString();
       debugPrint('Auth initialization error: $e');
     } finally {
       _setLoading(false);
+    }
+  }
+
+  Future<void> _initializeAuthState() async {
+    _isLoggedIn = await _authService.isLoggedIn();
+    debugPrint('User is logged in: $_isLoggedIn');
+  }
+
+  Future<void> _preloadUserData() async {
+    if (_isLoggedIn) {
+      try {
+        _user = await _authService.getStoredUser();
+        debugPrint('Loaded user: ${_user?.name}');
+        
+        // Try to refresh user data in background
+        unawaited(_refreshUserData());
+      } catch (e) {
+        debugPrint('Error preloading user data: $e');
+      }
+    }
+  }
+
+  Future<void> _refreshUserData() async {
+    try {
+      final currentUser = await _authService.getCurrentUser();
+      if (currentUser != null) {
+        _user = currentUser;
+        debugPrint('Updated user data: ${_user?.name}');
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error refreshing user data: $e');
     }
   }
 

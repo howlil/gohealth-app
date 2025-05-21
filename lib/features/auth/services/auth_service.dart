@@ -1,188 +1,291 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:developer';
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../configs/env_config.dart';
 import '../models/auth_models.dart';
 
 class AuthService {
   late final GoogleSignIn _googleSignIn;
+  final ValueNotifier<bool> webSignInButtonVisible = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> isSigningIn = ValueNotifier<bool>(false);
+
+  // Completer for web sign-in flow
+  Completer<GoogleSignInAccount?>? _webSignInCompleter;
   
+  // Stream controller for auth state changes
+  final _authStateController = StreamController<User?>.broadcast();
+  
+  // Cached values to reduce SharedPreferences access
+  User? _cachedUser;
+  String? _cachedToken;
+  bool _initialized = false;
+
+  // Your Google Client IDs (consider moving these to an env config)
+  static const String _webClientId =
+      '845113946067-ukaickbhgki6n6phesnacsa9b4sgc8hu.apps.googleusercontent.com';
+  static const String _androidClientId =
+      '845113946067-hvg4pfb2ncjicg8mh8en5ouckugkdbeh.apps.googleusercontent.com';
+  static const String _iosClientId =
+      '845113946067-hvg4pfb2ncjicg8mh8en5ouckugkdbeh.apps.googleusercontent.com';
+      
+  // API base URL (move to env config)
+  static const String _apiBaseUrl = 'https://89f2-36-69-117-110.ngrok-free.app/api/v1';
+
   AuthService() {
     _initializeGoogleSignIn();
-  }
-  
-  void _initializeGoogleSignIn() {
-    // Fix: Simplified configuration, removed serverClientId that might cause issues
-    _googleSignIn = GoogleSignIn(
-      scopes: ['email', 'profile'],
-    );
+    _loadCachedUserData();
   }
 
-  // Google Sign In
+  // Initialize the Google Sign-In configuration
+  void _initializeGoogleSignIn() {
+    if (_initialized) return;
+    
+    if (kIsWeb) {
+      _googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile', 'openid'],
+        clientId: _webClientId,
+      );
+      
+      // Initialize the web sign-in handler
+      _googleSignIn.onCurrentUserChanged.listen(_handleWebUserChanged);
+      _trySilentSignIn();
+    } else {
+      // Platform-specific initialization
+      _googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile', 'openid'],
+        clientId: kIsWeb ? null : (Platform.isIOS ? _iosClientId : _androidClientId),
+        serverClientId: _webClientId,
+      );
+    }
+    
+    _initialized = true;
+  }
+
+  // Load cached user data to avoid excessive shared preferences access
+  Future<void> _loadCachedUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString(AppConstants.userDataKey);
+      final token = prefs.getString(AppConstants.accessTokenKey);
+      
+      if (userJson != null) {
+        _cachedUser = User.fromJson(json.decode(userJson));
+        _authStateController.add(_cachedUser);
+      }
+      
+      _cachedToken = token;
+    } catch (e) {
+      debugPrint('Failed to load cached user data: $e');
+    }
+  }
+
+  // Web user change handler
+  void _handleWebUserChanged(GoogleSignInAccount? account) async {
+    if (account == null) return;
+    
+    isSigningIn.value = true;
+    try {
+      final response = await _processGoogleSignIn(account);
+      if (_webSignInCompleter != null && !_webSignInCompleter!.isCompleted) {
+        _webSignInCompleter!.complete(account);
+      }
+    } catch (e) {
+      if (_webSignInCompleter != null && !_webSignInCompleter!.isCompleted) {
+        _webSignInCompleter!.completeError(e);
+      }
+    } finally {
+      isSigningIn.value = false;
+    }
+  }
+
+  // Try silent sign-in (offloaded from main thread)
+  Future<void> _trySilentSignIn() async {
+    try {
+      await _googleSignIn.signInSilently();
+    } catch (e) {
+      // Silent failure is expected
+    }
+  }
+
+  // Main sign-in method
   Future<AuthResponse?> signInWithGoogle() async {
     try {
-      // Add proper logging for debugging
-      log('Starting Google Sign In process');
+      isSigningIn.value = true;
       
-      // Fix: Handle sign-in silently first to check existing accounts
-      GoogleSignInAccount? googleAccount;
-      try {
-        googleAccount = await _googleSignIn.signInSilently();
-      } catch (e) {
-        log('Silent sign-in failed: $e');
-        // Silent sign-in failed, continue with interactive sign-in
+      // For web platform, use web-specific method
+      if (kIsWeb) {
+        return await _signInWithGoogleWeb();
       }
       
-      // If silent sign-in failed, try interactive sign-in
-      if (googleAccount == null) {
-        try {
-          googleAccount = await _googleSignIn.signIn();
-        } catch (e) {
-          log('Interactive sign-in failed: $e');
-          throw Exception('Failed to sign in with Google: $e');
-        }
+      // For mobile platforms, use standard approach
+      await _googleSignIn.signOut(); // Clear previous sessions
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      
+      if (googleUser == null) {
+        return null; // User canceled
       }
       
-      // User cancelled the sign-in
-      if (googleAccount == null) {
-        log('User cancelled sign-in');
-        return null;
+      return await _processGoogleSignIn(googleUser);
+    } catch (e) {
+      if (e is PlatformException) {
+        debugPrint('Platform error: ${e.code} - ${e.message}');
+      } else {
+        debugPrint('Sign-in error: $e');
       }
+      rethrow;
+    } finally {
+      isSigningIn.value = false;
+    }
+  }
 
-      // Get authentication details
-      log('Getting auth details for account: ${googleAccount.email}');
-      final GoogleSignInAuthentication googleAuth = await googleAccount.authentication;
+  // Web-specific sign-in
+  Future<AuthResponse?> _signInWithGoogleWeb() async {
+    try {
+      // Clean up previous sessions
+      await _googleSignIn.signOut();
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      // Create completer for the async flow
+      _webSignInCompleter = Completer<GoogleSignInAccount?>();
+      webSignInButtonVisible.value = true;
+      
+      final GoogleSignInAccount? googleUser = await _webSignInCompleter!.future;
+      
+      webSignInButtonVisible.value = false;
+      
+      if (googleUser == null) {
+        return null; // User canceled
+      }
+      
+      return await _processGoogleSignIn(googleUser);
+    } catch (e) {
+      debugPrint('Web sign-in error: $e');
+      rethrow;
+    } finally {
+      webSignInButtonVisible.value = false;
+    }
+  }
+
+  // Process Google Sign-In
+  Future<AuthResponse?> _processGoogleSignIn(GoogleSignInAccount googleUser) async {
+    try {
+      // Get authentication data
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      
       final String? idToken = googleAuth.idToken;
-
+      
       if (idToken == null) {
-        throw Exception('Failed to get ID token from Google');
+        throw Exception('No ID token received from Google');
       }
-
-      log('Successfully obtained ID token, authenticating with backend');
       
-      // For debugging: demonstrate token is available
-      log('Token length: ${idToken.length}');
-      
-      // Fix: For testing, if backend is not available, create a mock response
-      // This allows testing the flow even if the backend is not available
-      if (EnvConfig.apiBaseUrl.contains('NOT_CONFIGURED')) {
-        log('Using mock auth response as API URL is not configured');
-        return _createMockAuthResponse(googleAccount);
-      }
-
-      // Send to your backend
+      // Authenticate with backend
       return await _authenticateWithBackend(idToken);
     } catch (e) {
-      log('Google Sign In error: $e');
-      // Properly rethrow for better tracing
+      debugPrint('Process sign-in error: $e');
       rethrow;
     }
   }
 
-  // Authentication with backend
+  // Backend authentication
   Future<AuthResponse> _authenticateWithBackend(String idToken) async {
     try {
-      log('Sending auth request to: ${EnvConfig.apiBaseUrl}/auth/google');
+      final url = '$_apiBaseUrl/auth/google';
       
       final response = await http.post(
-        Uri.parse('${EnvConfig.apiBaseUrl}/auth/google'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
         body: json.encode({"idToken": idToken}),
-      ).timeout(AppConstants.requestTimeout);
-
-      log('Auth response status: ${response.statusCode}');
+      ).timeout(const Duration(seconds: 30));
       
       if (response.statusCode == 200) {
         final authResponse = AuthResponse.fromJson(json.decode(response.body));
         await _saveAuthData(authResponse.data);
         return authResponse;
       } else {
-        final errorBody = response.body;
-        log('Auth error response: $errorBody');
-        
-        try {
-          final errorResponse = json.decode(errorBody);
-          throw Exception(errorResponse['message'] ?? 'Authentication failed');
-        } catch (e) {
-          throw Exception('Authentication failed with status ${response.statusCode}');
-        }
+        final errorBody = json.decode(response.body);
+        final errorMessage = errorBody['message'] ?? 'Authentication failed';
+        throw Exception(errorMessage);
       }
     } catch (e) {
-      log('Backend authentication error: $e');
+      debugPrint('Backend authentication error: $e');
       rethrow;
     }
   }
 
-  // Mock auth response for testing
-  AuthResponse _createMockAuthResponse(GoogleSignInAccount account) {
-    final user = User(
-      id: 'mock-user-id-${DateTime.now().millisecondsSinceEpoch}',
-      email: account.email,
-      name: account.displayName ?? 'User',
-      profileImage: account.photoUrl,
-    );
+  // Handle sign-in button click
+  Future<void> handleGoogleSignInButtonClick() async {
+    if (!kIsWeb) return;
     
-    final authData = AuthData(
-      user: user,
-      accessToken: 'mock-access-token',
-      refreshToken: 'mock-refresh-token',
-      tokenType: 'Bearer',
-      expiresIn: '3600',
-    );
-    
-    _saveAuthData(authData);
-    
-    return AuthResponse(
-      success: true,
-      statusCode: 200,
-      message: 'Authenticated successfully',
-      data: authData,
-      timestamp: DateTime.now().toIso8601String(),
-    );
+    try {
+      isSigningIn.value = true;
+      
+      // Clear previous sessions
+      await _googleSignIn.signOut();
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      // Trigger sign-in
+      final GoogleSignInAccount? account = await _googleSignIn.signIn();
+      
+      if (account == null && _webSignInCompleter != null && !_webSignInCompleter!.isCompleted) {
+        _webSignInCompleter!.complete(null);
+      }
+    } catch (e) {
+      if (_webSignInCompleter != null && !_webSignInCompleter!.isCompleted) {
+        _webSignInCompleter!.completeError(e);
+      }
+    } finally {
+      isSigningIn.value = false;
+    }
   }
 
   // Save authentication data
   Future<void> _saveAuthData(AuthData authData) async {
     try {
-      log('Saving auth data');
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(AppConstants.accessTokenKey, authData.accessToken);
       await prefs.setString(AppConstants.refreshTokenKey, authData.refreshToken);
       await prefs.setString(AppConstants.userDataKey, json.encode(authData.user.toJson()));
-      log('Auth data saved successfully');
+      
+      // Update cached values
+      _cachedUser = authData.user;
+      _cachedToken = authData.accessToken;
+      
+      // Notify listeners
+      _authStateController.add(_cachedUser);
     } catch (e) {
-      log('Error saving auth data: $e');
-      throw Exception('Failed to save authentication data: $e');
+      debugPrint('Error saving auth data: $e');
+      throw Exception('Failed to save authentication data');
     }
   }
 
-  // Remaining methods unchanged...
   // Get stored user
   Future<User?> getStoredUser() async {
+    if (_cachedUser != null) return _cachedUser;
+    
     final prefs = await SharedPreferences.getInstance();
     final userJson = prefs.getString(AppConstants.userDataKey);
+    
     if (userJson != null) {
-      return User.fromJson(json.decode(userJson));
+      _cachedUser = User.fromJson(json.decode(userJson));
+      return _cachedUser;
     }
+    
     return null;
   }
 
   // Get access token
   Future<String?> getAccessToken() async {
+    if (_cachedToken != null) return _cachedToken;
+    
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(AppConstants.accessTokenKey);
-  }
-
-  // Get refresh token
-  Future<String?> getRefreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(AppConstants.refreshTokenKey);
+    _cachedToken = prefs.getString(AppConstants.accessTokenKey);
+    return _cachedToken;
   }
 
   // Check if user is logged in
@@ -193,17 +296,17 @@ class AuthService {
 
   // Refresh token
   Future<AuthResponse?> refreshToken() async {
-    final refreshToken = await getRefreshToken();
+    final prefs = await SharedPreferences.getInstance();
+    final refreshToken = prefs.getString(AppConstants.refreshTokenKey);
+    
     if (refreshToken == null) return null;
 
     try {
       final response = await http.post(
-        Uri.parse('${EnvConfig.apiBaseUrl}/auth/refresh'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        Uri.parse('$_apiBaseUrl/auth/refresh'),
+        headers: {'Content-Type': 'application/json'},
         body: json.encode({'refreshToken': refreshToken}),
-      ).timeout(AppConstants.requestTimeout);
+      ).timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
         final authResponse = AuthResponse.fromJson(json.decode(response.body));
@@ -211,27 +314,42 @@ class AuthService {
         return authResponse;
       }
     } catch (e) {
-      // If refresh fails, logout user
-      log('Refresh token error: $e');
-      await logout();
+      debugPrint('Refresh token error: $e');
+      await signOut(); // Logout on refresh failure
     }
+    
     return null;
   }
 
-  // Logout
-  Future<void> logout() async {
+  // Sign out
+  Future<void> signOut() async {
     try {
-      // Sign out from Google
-      await _googleSignIn.signOut();
+      // Perform asynchronous operations in parallel
+      await Future.wait([
+        _googleSignIn.signOut(),
+        _clearLocalStorage(),
+      ]);
       
-      // Clear local storage
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(AppConstants.accessTokenKey);
-      await prefs.remove(AppConstants.refreshTokenKey);
-      await prefs.remove(AppConstants.userDataKey);
+      // Clear cached values
+      _cachedUser = null;
+      _cachedToken = null;
+      
+      // Notify listeners
+      _authStateController.add(null);
     } catch (e) {
-      log('Logout error: $e');
+      debugPrint('Sign-out error: $e');
     }
+  }
+
+  // Alias for signOut
+  Future<void> logout() => signOut();
+
+  // Clear local storage
+  Future<void> _clearLocalStorage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(AppConstants.accessTokenKey);
+    await prefs.remove(AppConstants.refreshTokenKey);
+    await prefs.remove(AppConstants.userDataKey);
   }
 
   // Get current user from API
@@ -241,12 +359,12 @@ class AuthService {
 
     try {
       final response = await http.get(
-        Uri.parse('${EnvConfig.apiBaseUrl}/auth/me'),
+        Uri.parse('$_apiBaseUrl/auth/me'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      ).timeout(AppConstants.requestTimeout);
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -256,17 +374,34 @@ class AuthService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(AppConstants.userDataKey, json.encode(user.toJson()));
         
+        // Update cached user
+        _cachedUser = user;
+        
+        // Notify listeners
+        _authStateController.add(_cachedUser);
+        
         return user;
       } else if (response.statusCode == 401) {
-        // Token might be expired, try to refresh
+        // Token expired, try to refresh
         final refreshResponse = await refreshToken();
         if (refreshResponse != null) {
           return getCurrentUser(); // Retry with new token
         }
       }
     } catch (e) {
-      log('Get current user error: $e');
+      debugPrint('Get current user error: $e');
     }
+    
     return null;
+  }
+
+  // Stream of auth state changes
+  Stream<User?> get authStateChanges => _authStateController.stream;
+
+  // Dispose resources
+  void dispose() {
+    _authStateController.close();
+    webSignInButtonVisible.dispose();
+    isSigningIn.dispose();
   }
 }
