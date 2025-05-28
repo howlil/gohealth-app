@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/profile_model.dart';
+import 'package:gohealth/models/profile_model.dart';
 
 class ProfileForm extends StatefulWidget {
   final ProfileModel profile;

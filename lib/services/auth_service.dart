@@ -1,47 +1,79 @@
-import 'package:dio/dio.dart';
-import '../models/auth_response_model.dart';
-import '../models/user_model.dart';
-import '../utils/dio_client.dart';
+import 'package:gohealth/models/auth_model.dart';
+import 'package:gohealth/models/api_response_model.dart';
+import 'package:gohealth/utils/dio_client.dart';
 
 class AuthService {
-  final Dio _dio = DioClient.instance;
+  final DioClient _dioClient = DioClient();
 
-  Future<AuthResponse> googleAuth(String idToken) async {
+  Future<ApiResponse<AuthResponseData>> login(
+      String email, String password) async {
     try {
-      final response = await _dio.post('/auth/google', data: {
-        'idToken': idToken,
-      });
-      return AuthResponse.fromJson(response.data);
+      final response = await _dioClient.post(
+        '/auth/login',
+        data: {
+          'email': email,
+          'password': password,
+        },
+      );
+
+      return ApiResponse<AuthResponseData>.fromJson(
+        response.data,
+        (json) => AuthResponseData.fromJson(json as Map<String, dynamic>),
+      );
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<AuthResponse> refreshToken(String refreshToken) async {
+  Future<ApiResponse<AuthResponseData>> register(
+      String name, String email, String password) async {
     try {
-      final response = await _dio.post('/auth/refresh', data: {
-        'refreshToken': refreshToken,
-      });
-      return AuthResponse.fromJson(response.data);
+      final response = await _dioClient.post(
+        '/auth/register',
+        data: {
+          'name': name,
+          'email': email,
+          'password': password,
+        },
+      );
+
+      return ApiResponse<AuthResponseData>.fromJson(
+        response.data,
+        (json) => AuthResponseData.fromJson(json as Map<String, dynamic>),
+      );
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<void> logout() async {
+  Future<ApiResponse<AuthResponseData>> refreshToken(
+      String refreshToken) async {
     try {
-      await _dio.post('/auth/logout');
+      final response = await _dioClient.post(
+        '/auth/refresh',
+        data: {
+          'refreshToken': refreshToken,
+        },
+      );
+
+      return ApiResponse<AuthResponseData>.fromJson(
+        response.data,
+        (json) => AuthResponseData.fromJson(json as Map<String, dynamic>),
+      );
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<User> getCurrentUser() async {
+  Future<ApiResponse<dynamic>> logout() async {
     try {
-      final response = await _dio.get('/auth/me');
-      return User.fromJson(response.data);
+      final response = await _dioClient.post('/auth/logout');
+      return ApiResponse<dynamic>.fromJson(
+        response.data,
+        (json) => null,
+      );
     } catch (e) {
       rethrow;
     }
   }
-} 
+}

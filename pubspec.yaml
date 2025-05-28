@@ -17,37 +17,23 @@ dependencies:
 
   # State Management
   flutter_riverpod: ^2.4.9
-  provider: ^6.1.1
-
-  # Dependency Injection
-  get_it: ^7.6.4
-  injectable: ^2.3.2
 
   # Network
   dio: ^5.4.0
-  retrofit: ^4.0.3
-  http: ^1.2.0
-  http_parser: ^4.0.2
-
-  # Code Generation
-  freezed_annotation: ^2.4.1
-  json_annotation: ^4.8.1
 
   # Local Storage
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.5.3
   flutter_secure_storage: ^9.0.0
 
   # UI
   flutter_screenutil: ^5.9.0
   cached_network_image: ^3.3.0
   image_picker: ^1.0.7
-
   fl_chart: ^1.0.0
 
   # Utils
   intl: ^0.18.1
   logger: ^2.0.2+1
-  google_sign_in: ^5.0.0
   flutter_dotenv: ^5.2.1
   cupertino_icons: ^1.0.2
 
@@ -55,15 +41,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^2.0.0
-  
-  # Code Generation
-  build_runner: ^2.4.8
-  freezed: ^2.4.6
-  json_serializable: ^6.7.1
-  injectable_generator: ^2.4.1
-  retrofit_generator: ^8.0.6
 
 flutter:
   uses-material-design: true
+  assets:
+    - .env
   
 
