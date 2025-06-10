@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +6,7 @@ import '../utils/app_colors.dart';
 import '../widgets/inputs/rounded_input_field.dart';
 import '../widgets/rounded_button.dart';
 import '../providers/auth_provider.dart';
+import '../providers/profile_provider.dart';
 import '../widgets/profile/profile_avatar.dart';
 import '../widgets/profile/glass_container.dart';
 
@@ -28,16 +28,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize controllers
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
-    
+
     _nameController = TextEditingController(text: user?.name ?? 'Ulil');
     _ageController = TextEditingController(text: user?.age?.toString() ?? '21');
-    _heightController = TextEditingController(text: user?.height?.toString() ?? '170');
-    _weightController = TextEditingController(text: user?.weight?.toString() ?? '55');
-    
+    _heightController =
+        TextEditingController(text: user?.height?.toString() ?? '170');
+    _weightController =
+        TextEditingController(text: user?.weight?.toString() ?? '55');
+
     // Set gender based on user data
     if (user?.gender != null) {
       _gender = user!.gender == 'MALE' ? 'Pria' : 'Wanita';
@@ -66,30 +68,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<bool> _showLogoutConfirmation() async {
     return await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Text('Konfirmasi Keluar'),
-          content: const Text('Apakah Anda yakin ingin keluar dari akun?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Batal'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.error,
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: const Text('Keluar'),
-            ),
-          ],
-        );
-      },
-    ) ?? false;
+              title: const Text('Konfirmasi Keluar'),
+              content: const Text('Apakah Anda yakin ingin keluar dari akun?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Batal'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                  ),
+                  child: const Text('Keluar'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   @override
@@ -110,7 +113,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.2),
+                color: AppColors.primary.withValues(alpha: 0.2),
               ),
             ),
           ),
@@ -122,11 +125,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary.withOpacity(0.15),
+                color: AppColors.secondary.withValues(alpha: 0.15),
               ),
             ),
           ),
-          
+
           // Main content
           SingleChildScrollView(
             child: Padding(
@@ -135,9 +138,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   // Profile header
                   _buildProfileHeader(),
-                  
+
                   const SizedBox(height: 12),
-                  
+
                   // Personal information section
                   GlassContainer(
                     child: Column(
@@ -145,13 +148,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         _buildSectionTitle('Informasi Pribadi'),
                         const SizedBox(height: 12),
-                        
-                        _buildFormField('Nama', _nameController, TextInputType.text),
-                        _buildFormField('Usia', _ageController, TextInputType.number),
+                        _buildFormField(
+                            'Nama', _nameController, TextInputType.text),
+                        _buildFormField(
+                            'Usia', _ageController, TextInputType.number),
                         _buildGenderSelector(),
-                        _buildFormField('Tinggi (cm)', _heightController, TextInputType.number),
-                        _buildFormField('Berat (kg)', _weightController, TextInputType.number),
-                        
+                        _buildFormField('Tinggi (cm)', _heightController,
+                            TextInputType.number),
+                        _buildFormField('Berat (kg)', _weightController,
+                            TextInputType.number),
                         const SizedBox(height: 12),
                         RoundedButton(
                           text: "Simpan Profil",
@@ -161,9 +166,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Account section
                   GlassContainer(
                     child: Column(
@@ -171,36 +176,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         _buildSectionTitle('Akun'),
                         const SizedBox(height: 12),
-                        
+                        _buildAccountOption('Ubah Password', Icons.lock_outline,
+                            () {
+                          // Handle password change
+                        }),
                         _buildAccountOption(
-                          'Ubah Password', 
-                          Icons.lock_outline,
-                          () {
-                            // Handle password change
-                          }
-                        ),
-                        
-                        _buildAccountOption(
-                          'Notifikasi', 
-                          Icons.notifications_none_outlined,
-                          () {
-                            // Handle notifications
-                          }
-                        ),
-                        
-                        _buildAccountOption(
-                          'Privasi', 
-                          Icons.shield_outlined,
-                          () {
-                            // Handle privacy settings
-                          }
-                        ),
+                            'Notifikasi', Icons.notifications_none_outlined,
+                            () {
+                          // Handle notifications
+                        }),
+                        _buildAccountOption('Privasi', Icons.shield_outlined,
+                            () {
+                          // Handle privacy settings
+                        }),
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Logout button
                   Consumer<AuthProvider>(
                     builder: (context, authProvider, child) {
@@ -208,10 +202,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (!authProvider.isLoggedIn) {
                         return const SizedBox.shrink();
                       }
-                      
+
                       return GlassContainer(
-                        color: Colors.red.withOpacity(0.05),
-                        borderColor: Colors.red.withOpacity(0.2),
+                        color: Colors.red.withValues(alpha: 0.05),
+                        borderColor: Colors.red.withValues(alpha: 0.2),
                         child: InkWell(
                           onTap: authProvider.isLoading ? null : _handleLogout,
                           borderRadius: BorderRadius.circular(12),
@@ -239,7 +233,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  authProvider.isLoading ? "Keluar..." : "Keluar",
+                                  authProvider.isLoading
+                                      ? "Keluar..."
+                                      : "Keluar",
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
@@ -253,7 +249,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       );
                     },
                   ),
-                  
+
                   const SizedBox(height: 24),
                 ],
               ),
@@ -268,12 +264,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
         final user = authProvider.user;
-        
+
         return Column(
           children: [
             const SizedBox(height: 12),
             ProfileAvatar(
-              imageUrl: user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
+              imageUrl:
+                  user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
               size: 80,
               onTap: () {
                 // Handle tap on profile pic
@@ -297,12 +294,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (!authProvider.isLoggedIn)
               Container(
                 margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.1),
+                  color: AppColors.warning.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.warning.withOpacity(0.3),
+                    color: AppColors.warning.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Text(
@@ -330,7 +328,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildFormField(String label, TextEditingController controller, TextInputType keyboardType) {
+  Widget _buildFormField(String label, TextEditingController controller,
+      TextInputType keyboardType) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -374,7 +373,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             border: Border.all(color: Colors.grey.shade200),
             boxShadow: [
               BoxShadow(
-                color: const Color.fromARGB(255, 134, 134, 134).withOpacity(0.03),
+                color: const Color.fromARGB(255, 134, 134, 134)
+                    .withValues(alpha: 0.03),
                 blurRadius: 25,
                 offset: const Offset(0, 4),
               ),

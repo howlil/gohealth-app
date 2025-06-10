@@ -23,7 +23,7 @@ class FoodItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -36,10 +36,10 @@ class FoodItem extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   width: 1,
                 ),
               ),
@@ -62,13 +62,13 @@ class FoodItem extends StatelessWidget {
                             ),
                           )
                         : Icon(
-                            _getCategoryIcon(food.category),
+                            _getCategoryIcon(food.category ?? 'Umum'),
                             size: 20,
                             color: Colors.grey.shade700,
                           ),
                   ),
                   const SizedBox(width: 12),
-                  
+
                   // Food name and calories
                   Expanded(
                     child: Column(
@@ -92,7 +92,7 @@ class FoodItem extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
+
                   // Favorite button
                   GestureDetector(
                     onTap: onFavoriteToggle,

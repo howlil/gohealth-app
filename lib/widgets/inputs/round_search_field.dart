@@ -4,6 +4,7 @@ class RoundSearchField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
   final VoidCallback? onClear;
   final bool enabled;
   final FocusNode? focusNode;
@@ -13,6 +14,7 @@ class RoundSearchField extends StatelessWidget {
     required this.controller,
     this.hintText = 'Search...',
     this.onChanged,
+    this.onSubmitted,
     this.onClear,
     this.enabled = true,
     this.focusNode,
@@ -26,7 +28,7 @@ class RoundSearchField extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             spreadRadius: 0,
           ),
@@ -35,6 +37,7 @@ class RoundSearchField extends StatelessWidget {
       child: TextField(
         controller: controller,
         onChanged: onChanged,
+        onSubmitted: onSubmitted,
         enabled: enabled,
         focusNode: focusNode,
         style: const TextStyle(color: Colors.black87),

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../../utils/app_colors.dart';
 
 class RoundedInputField extends StatelessWidget {
   final String? hintText;
@@ -16,6 +14,8 @@ class RoundedInputField extends StatelessWidget {
   final FocusNode? focusNode;
   final VoidCallback? onTap;
   final bool readOnly;
+  final IconData? suffixIcon;
+  final VoidCallback? onSuffixIconTap;
 
   const RoundedInputField({
     Key? key,
@@ -32,6 +32,8 @@ class RoundedInputField extends StatelessWidget {
     this.focusNode,
     this.onTap,
     this.readOnly = false,
+    this.suffixIcon,
+    this.onSuffixIconTap,
   }) : super(key: key);
 
   @override
@@ -53,6 +55,12 @@ class RoundedInputField extends StatelessWidget {
         hintText: hintText,
         hintStyle: TextStyle(color: Colors.grey[400]),
         prefixIcon: icon != null ? Icon(icon, color: Colors.grey[600]) : null,
+        suffixIcon: suffixIcon != null
+            ? GestureDetector(
+                onTap: onSuffixIconTap,
+                child: Icon(suffixIcon, color: Colors.grey[600]),
+              )
+            : null,
         filled: true,
         fillColor: Colors.white,
         contentPadding:

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:provider/provider.dart';
 import '../widgets/navigations/app_layout.dart';
 import '../utils/app_colors.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/home/stat_chip.dart';
 import '../widgets/home/action_glass_card.dart';
-import 'ibm_screen.dart';
+import '../providers/dashboard_provider.dart';
+import '../providers/profile_provider.dart';
 import 'package:go_router/go_router.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,8 +18,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
-
   // Dummy data untuk grafik
   final List<FlSpot> weeklyCaloriesData = [
     FlSpot(0, 1200), // Sun
@@ -28,6 +28,16 @@ class _HomeScreenState extends State<HomeScreen> {
     FlSpot(5, 1600), // Fri
     FlSpot(6, 1450), // Sat
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Load data when screen initializes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DashboardProvider>().loadDashboardData();
+      context.read<ProfileProvider>().initializeProfile();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
               ),
             ),
           ),
@@ -58,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary.withOpacity(0.08),
+                color: AppColors.secondary.withValues(alpha: 0.08),
               ),
             ),
           ),
@@ -111,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: StatChip(
             title: 'Start Weight',
             value: '55.5 KG',
-            color: AppColors.primary.withOpacity(0.08),
+            color: AppColors.primary.withValues(alpha: 0.08),
             iconData: Icons.monitor_weight_outlined,
           ),
         ),
@@ -120,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: StatChip(
             title: 'Goals',
             value: '60 KG',
-            color: AppColors.secondary.withOpacity(0.08),
+            color: AppColors.secondary.withValues(alpha: 0.08),
             iconData: Icons.flag_outlined,
           ),
         ),
@@ -129,7 +139,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: StatChip(
             title: 'Daily Cal',
             value: '15000',
-            color: AppColors.accent1.withOpacity(0.08),
+            color: AppColors.accent1.withValues(alpha: 0.08),
             iconData: Icons.local_fire_department_outlined,
           ),
         ),
@@ -152,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text(
@@ -276,8 +286,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       show: true,
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.primary.withOpacity(0.3),
-                          AppColors.primary.withOpacity(0.0),
+                          AppColors.primary.withValues(alpha: 0.3),
+                          AppColors.primary.withValues(alpha: 0.0),
                         ],
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,

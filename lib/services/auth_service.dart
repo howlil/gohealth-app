@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:developer';
-import 'package:gohealth/api/end_point.dart';
+import 'package:gohealth/api/endpoints.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:gohealth/models/auth_model.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
+import 'package:gohealth/utils/env_config.dart';
+import 'package:gohealth/utils/app_constants.dart';
+import 'package:gohealth/utils/storage_util.dart';
 
 class AuthService {
   late GoogleSignIn _googleSignIn;
@@ -13,7 +16,6 @@ class AuthService {
   AuthService() {
     _initializeGoogleSignIn();
   }
-
   void _initializeGoogleSignIn() {
     if (kIsWeb) {
       _googleSignIn = GoogleSignIn(
@@ -21,8 +23,8 @@ class AuthService {
         scopes: ['email', 'profile'],
       );
     } else {
+      // For Android/iOS, use the appropriate client ID
       _googleSignIn = GoogleSignIn(
-        serverClientId: EnvConfig.googleWebClientId,
         scopes: ['email', 'profile'],
       );
     }
@@ -34,48 +36,50 @@ class AuthService {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
-        throw Exception('Google Sign In cancelled by user');
+        // User cancelled the sign-in process
+        debugPrint('Google Sign In cancelled by user');
+        return null;
       }
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      // final GoogleSignInAuthentication googleAuth =
+      //     await googleUser.authentication;
 
-      final accessToken = googleAuth.accessToken;
-      final idToken = googleAuth.idToken;
+      // You can use these tokens if needed for backend authentication
+      // final accessToken = googleAuth.accessToken;
+      // final idToken = googleAuth.idToken;
 
       return googleUser;
     } catch (error) {
-      log('Google sign in error: $error');
-      rethrow;
-    }
-  }
-  // Authenticate with backend
-  Future<AuthResponse> _authenticateWithBackend(String idToken) async {
-    final response = await http
-        .post(
-          Uri.parse('${EnvConfig.apiBaseUrl}${ApiEndpoints.googleAuth}'),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: json.encode(AuthRequest(idToken: idToken).toJson()),
-        )
-        .timeout(AppConstants.requestTimeout);
+      final errorString = error.toString();
 
-    if (response.statusCode == 200) {
-      final authResponse = AuthResponse.fromJson(json.decode(response.body));
-      await _saveAuthData(authResponse.data);
-      return authResponse;
-    } else {
-      final errorResponse = json.decode(response.body);
-      throw Exception(errorResponse['message'] ?? 'Authentication failed');
+      // Handle different types of Google Sign-In errors
+      if (errorString.contains('popup_closed')) {
+        debugPrint('Google Sign In popup closed by user');
+        return null;
+      } else if (errorString.contains('sign_in_canceled')) {
+        debugPrint('Google Sign In canceled by user');
+        return null;
+      } else if (errorString.contains('sign_in_failed')) {
+        debugPrint('Google Sign In failed - check configuration');
+        debugPrint('Error details: $error');
+        return null;
+      } else if (errorString.contains('ApiException: 10')) {
+        debugPrint('Google Sign In configuration error (API Exception 10)');
+        debugPrint('Please check SHA-1 fingerprint and Firebase configuration');
+        return null;
+      }
+
+      log('Google sign in error: $error');
+      return null; // Return null instead of rethrowing for better UX
     }
   }
 
   // Save authentication data
   Future<void> _saveAuthData(AuthResponseData authData) async {
+    await StorageUtil.saveAccessToken(authData.accessToken);
+    await StorageUtil.saveRefreshToken(authData.refreshToken);
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(AppConstants.accessTokenKey, authData.accessToken);
-    await prefs.setString(AppConstants.refreshTokenKey, authData.refreshToken);
     await prefs.setString(
         AppConstants.userDataKey, json.encode(authData.user.toJson()));
   }

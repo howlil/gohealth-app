@@ -6,7 +6,7 @@ import '../widgets/food/food_item.dart';
 import '../widgets/inputs/nutrient_bar.dart';
 import '../widgets/inputs/round_search_field.dart';
 import '../widgets/inputs/tab_selector.dart';
-import 'foods/models/food_model.dart';
+import '../models/food_model.dart';
 
 class FoodScreen extends StatefulWidget {
   const FoodScreen({super.key});
@@ -21,13 +21,16 @@ class _FoodScreenState extends State<FoodScreen> {
   Food? _selectedFood;
 
   final List<String> _tabs = ['Semua', 'Buah-buahan', 'Sayuran', 'Favorit'];
-
   // Dummy data untuk daftar makanan
   final List<Food> _foods = [
     Food(
+      id: '1',
       name: 'Apel',
       calories: 52,
-      weight: '100g',
+      protein: 0.3,
+      carbs: 13.8,
+      fat: 0.2,
+      weight: 100,
       nutrients: {
         'Karbohidrat': 13.8,
         'Protein': 0.3,
@@ -35,9 +38,9 @@ class _FoodScreenState extends State<FoodScreen> {
         'Serat': 2.4,
       },
       vitamins: {
-        'Vitamin C': {'value': 8.0, 'percentage': 9},
-        'Vitamin K': {'value': 2.2, 'percentage': 85},
-        'Vitamin A': {'value': 3.0, 'percentage': 71},
+        'Vitamin C': 8.0,
+        'Vitamin K': 2.2,
+        'Vitamin A': 3.0,
       },
       imageUrl: null,
       category: 'Buah-buahan',
@@ -46,9 +49,13 @@ class _FoodScreenState extends State<FoodScreen> {
           'Buah apel mengandung serat yang tinggi dan dapat membantu menjaga kesehatan pencernaan, serta kaya antioksidan yang memiliki sifat anti-kanker dan anti-inflamasi.',
     ),
     Food(
+      id: '2',
       name: 'Pisang',
       calories: 89,
-      weight: '100g',
+      protein: 1.1,
+      carbs: 22.8,
+      fat: 0.3,
+      weight: 100,
       nutrients: {
         'Karbohidrat': 22.8,
         'Protein': 1.1,
@@ -63,9 +70,13 @@ class _FoodScreenState extends State<FoodScreen> {
           'Pisang kaya akan potasium dan vitamin B6 yang membantu fungsi jantung dan sistem saraf.',
     ),
     Food(
+      id: '3',
       name: 'Brokoli',
       calories: 55,
-      weight: '100g',
+      protein: 2.8,
+      carbs: 11.2,
+      fat: 0.4,
+      weight: 100,
       nutrients: {
         'Karbohidrat': 11.2,
         'Protein': 2.8,
@@ -73,9 +84,9 @@ class _FoodScreenState extends State<FoodScreen> {
         'Serat': 2.6,
       },
       vitamins: {
-        'Vitamin C': {'value': 89.2, 'percentage': 99},
-        'Vitamin K': {'value': 102, 'percentage': 85},
-        'Vitamin A': {'value': 31, 'percentage': 71},
+        'Vitamin C': 89.2,
+        'Vitamin K': 102.0,
+        'Vitamin A': 31.0,
       },
       imageUrl: null,
       category: 'Sayuran',
@@ -84,9 +95,13 @@ class _FoodScreenState extends State<FoodScreen> {
           'Brokoli adalah sayuran yang kaya vitamin C, vitamin K dan serat. Sayuran yang mengandung sulforaphane, senyawa yang memiliki sifat anti-kanker dan anti-inflamasi.',
     ),
     Food(
+      id: '4',
       name: 'Dada Ayam',
       calories: 165,
-      weight: '100g',
+      protein: 31.0,
+      carbs: 0.0,
+      fat: 3.6,
+      weight: 100,
       nutrients: {
         'Karbohidrat': 0.0,
         'Protein': 31.0,
@@ -101,9 +116,13 @@ class _FoodScreenState extends State<FoodScreen> {
           'Dada ayam adalah sumber protein berkualitas tinggi dengan kandungan lemak yang rendah.',
     ),
     Food(
+      id: '5',
       name: 'Nasi Merah',
       calories: 111,
-      weight: '100g',
+      protein: 2.6,
+      carbs: 23.5,
+      fat: 0.9,
+      weight: 100,
       nutrients: {
         'Karbohidrat': 23.5,
         'Protein': 2.6,
@@ -118,9 +137,13 @@ class _FoodScreenState extends State<FoodScreen> {
           'Nasi merah kaya akan serat dan nutrisi, serta memiliki indeks glikemik yang lebih rendah dibanding nasi putih.',
     ),
     Food(
+      id: '6',
       name: 'Susu Rendah Lemak',
       calories: 42,
-      weight: '100g',
+      protein: 3.5,
+      carbs: 5.0,
+      fat: 1.0,
+      weight: 100,
       nutrients: {
         'Karbohidrat': 5.0,
         'Protein': 3.5,
@@ -135,7 +158,6 @@ class _FoodScreenState extends State<FoodScreen> {
           'Susu rendah lemak menyediakan kalsium dan protein tanpa lemak jenuh yang tinggi.',
     ),
   ];
-
   List<Food> get _filteredFoods {
     var filteredList = _foods;
 
@@ -143,13 +165,16 @@ class _FoodScreenState extends State<FoodScreen> {
     if (_selectedTab == 'Favorit') {
       filteredList = filteredList.where((food) => food.isFavorite).toList();
     } else if (_selectedTab != 'Semua') {
-      filteredList = filteredList.where((food) => food.category == _selectedTab).toList();
+      filteredList =
+          filteredList.where((food) => food.category == _selectedTab).toList();
     }
 
     // Filter berdasarkan pencarian
     if (_searchController.text.isNotEmpty) {
       final query = _searchController.text.toLowerCase();
-      filteredList = filteredList.where((food) => food.name.toLowerCase().contains(query)).toList();
+      filteredList = filteredList
+          .where((food) => food.name.toLowerCase().contains(query))
+          .toList();
     }
 
     return filteredList;
@@ -178,7 +203,8 @@ class _FoodScreenState extends State<FoodScreen> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withAlpha(13), // Fixed: withOpacity to withAlpha
+                color: AppColors.primary.withValues(
+                    alpha: 0.05), // Fixed: withOpacity to withValues
               ),
             ),
           ),
@@ -190,7 +216,8 @@ class _FoodScreenState extends State<FoodScreen> {
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary.withAlpha(13), // Fixed: withOpacity to withAlpha
+                color: AppColors.secondary.withValues(
+                    alpha: 0.05), // Fixed: withOpacity to withValues
               ),
             ),
           ),
@@ -211,15 +238,16 @@ class _FoodScreenState extends State<FoodScreen> {
                       onChanged: (value) {
                         setState(() {});
                       },
-                      hintText: 'Cari makanan...', // Added missing required parameter
+                      hintText:
+                          'Cari makanan...', // Added missing required parameter
                     ),
                     const SizedBox(height: 16),
                     TabSelector(
                       tabs: _tabs,
-                      selectedTab: _selectedTab,
-                      onTabSelected: (tab) {
+                      selectedIndex: _tabs.indexOf(_selectedTab),
+                      onTabSelected: (index) {
                         setState(() {
-                          _selectedTab = tab;
+                          _selectedTab = _tabs[index];
                         });
                       },
                     ),
@@ -230,7 +258,9 @@ class _FoodScreenState extends State<FoodScreen> {
 
               // Daftar makanan dan detail
               Expanded(
-                child: _selectedFood == null ? _buildFoodList() : _buildFoodDetails(),
+                child: _selectedFood == null
+                    ? _buildFoodList()
+                    : _buildFoodDetails(),
               ),
             ],
           ),
@@ -268,8 +298,36 @@ class _FoodScreenState extends State<FoodScreen> {
                   });
                 },
                 onFavoriteToggle: () {
+                  // Since isFavorite is final, we need to create a new Food object
+                  // For a real app, you would use proper state management like Provider, Riverpod, or BLoC
                   setState(() {
-                    food.isFavorite = !food.isFavorite;
+                    final index = _foods.indexOf(food);
+                    if (index != -1) {
+                      // Create a new Food object with toggled isFavorite value
+                      final updatedFood = Food(
+                        id: food.id,
+                        name: food.name,
+                        calories: food.calories,
+                        protein: food.protein,
+                        carbs: food.carbs,
+                        fat: food.fat,
+                        weight: food.weight,
+                        nutrients: food.nutrients,
+                        vitamins: food.vitamins,
+                        imageUrl: food.imageUrl,
+                        category: food.category,
+                        isFavorite: !food.isFavorite,
+                        description: food.description,
+                      );
+
+                      // Replace the old food with the updated one
+                      _foods[index] = updatedFood;
+
+                      // If this was the selected food, update that reference too
+                      if (_selectedFood == food) {
+                        _selectedFood = updatedFood;
+                      }
+                    }
                   });
                 },
               );
@@ -322,17 +380,15 @@ class _FoodScreenState extends State<FoodScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${food.calories} kcal per ${food.weight}',
+                  '${food.calories} kcal per ${food.weight?.toString() ?? "100"}g',
                   style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
                 ),
                 const SizedBox(height: 24),
-
                 const Text(
                   'Informasi Nutrisi (per 100g)',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -340,53 +396,47 @@ class _FoodScreenState extends State<FoodScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-
                 NutrientBar(
                   label: 'Karbohidrat',
-                  value: food.nutrients['Karbohidrat'] ?? 0,
+                  value: food.nutrients?['Karbohidrat'] ?? 0,
                   unit: 'g',
                   color: AppColors.primary,
                   maxValue: 30,
                 ),
                 const SizedBox(height: 10),
-
                 NutrientBar(
                   label: 'Protein',
-                  value: food.nutrients['Protein'] ?? 0,
+                  value: food.nutrients?['Protein'] ?? 0,
                   unit: 'g',
                   color: AppColors.secondary,
                   maxValue: 10,
                 ),
                 const SizedBox(height: 10),
-
                 NutrientBar(
                   label: 'Lemak',
-                  value: food.nutrients['Lemak'] ?? 0,
+                  value: food.nutrients?['Lemak'] ?? 0,
                   unit: 'g',
                   color: Colors.orange,
                   maxValue: 10,
                 ),
                 const SizedBox(height: 10),
-
                 NutrientBar(
                   label: 'Serat',
-                  value: food.nutrients['Serat'] ?? 0,
+                  value: food.nutrients?['Serat'] ?? 0,
                   unit: 'g',
                   color: Colors.purple,
                   maxValue: 5,
                 ),
-
-                if (food.vitamins.isNotEmpty) ...[
+                if (food.vitamins != null && food.vitamins!.isNotEmpty) ...[
                   const SizedBox(height: 24),
                   const Text(
                     'Vitamin',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  ...food.vitamins.entries.map((entry) {
+                  ...food.vitamins!.entries.map((entry) {
                     final vitaminName = entry.key;
-                    final value = entry.value['value'] as double;
-                    final percentage = entry.value['percentage'] as int;
+                    final value = entry.value;
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 10),
@@ -394,18 +444,16 @@ class _FoodScreenState extends State<FoodScreen> {
                         label: vitaminName,
                         value: value,
                         unit: 'mg',
-                        percentage: percentage,
                         color: AppColors.accent1,
                         maxValue: 150,
                       ),
                     );
                   }), // Fixed: Removed unnecessary toList()
                 ],
-
                 const SizedBox(height: 24),
-                if (food.description.isNotEmpty)
+                if (food.description != null && food.description!.isNotEmpty)
                   Text(
-                    food.description,
+                    food.description!,
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade700,

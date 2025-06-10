@@ -43,12 +43,11 @@ class _ProfileFormState extends State<ProfileForm> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.profile.name);
-    _ageController =
-        TextEditingController(text: widget.profile.age?.toString() ?? '');
+    _ageController = TextEditingController(text: widget.profile.age.toString());
     _heightController =
-        TextEditingController(text: widget.profile.height?.toString() ?? '');
+        TextEditingController(text: widget.profile.height.toString());
     _weightController =
-        TextEditingController(text: widget.profile.weight?.toString() ?? '');
+        TextEditingController(text: widget.profile.weight.toString());
     _selectedGender = widget.profile.gender;
     _selectedActivityLevel = widget.profile.activityLevel;
   }

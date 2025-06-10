@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'custom_bottom_nav_bar.dart';
-import 'package:go_router/go_router.dart';
 
 class AppLayout extends StatelessWidget {
   final Widget child;

@@ -5,7 +5,7 @@ import '../utils/app_colors.dart';
 import '../widgets/inputs/rounded_input_field.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/inputs/tab_selector.dart';
-import 'ibm/models/ibm_history.dart';
+import '../models/ibm_history.dart';
 
 class IBMScreen extends StatefulWidget {
   const IBMScreen({super.key});
@@ -14,15 +14,18 @@ class IBMScreen extends StatefulWidget {
   State<IBMScreen> createState() => _IBMScreenState();
 }
 
-class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMixin {
-  final TextEditingController _heightController = TextEditingController(text: '170');
-  final TextEditingController _weightController = TextEditingController(text: '55');
-  
+class _IBMScreenState extends State<IBMScreen>
+    with SingleTickerProviderStateMixin {
+  final TextEditingController _heightController =
+      TextEditingController(text: '170');
+  final TextEditingController _weightController =
+      TextEditingController(text: '55');
+
   double _bmi = 0.0;
   String _category = '';
   Color _categoryColor = Colors.transparent;
   bool _hasCalculated = false;
-  
+
   late TabController _tabController;
   String _activeTab = 'Ringkasan Gizi';
 
@@ -57,7 +60,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
       category: 'Normal',
     ),
   ];
-  
+
   List<FlSpot> get _bmiSpots {
     return _bmiHistory.asMap().entries.map((entry) {
       final index = entry.key.toDouble();
@@ -83,7 +86,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
   void _calculateBMI() {
     final height = double.tryParse(_heightController.text) ?? 0;
     final weight = double.tryParse(_weightController.text) ?? 0;
-    
+
     if (height <= 0 || weight <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -93,14 +96,14 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
       );
       return;
     }
-    
+
     // Calculate BMI: weight / (height in meters)²
     final heightInMeters = height / 100;
     final bmi = weight / (heightInMeters * heightInMeters);
-    
+
     String category;
     Color color;
-    
+
     if (bmi < 18.5) {
       category = 'Kurus';
       color = Colors.blue;
@@ -114,13 +117,13 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
       category = 'Obesitas';
       color = Colors.red;
     }
-    
+
     setState(() {
       _bmi = bmi;
       _category = category;
       _categoryColor = color;
       _hasCalculated = true;
-      
+
       // Add to history
       _bmiHistory.insert(
         0,
@@ -152,7 +155,8 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withAlpha(13), // Fixed: withOpacity to withAlpha
+                color: AppColors.primary
+                    .withAlpha(13), // Fixed: withOpacity to withAlpha
               ),
             ),
           ),
@@ -164,11 +168,12 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary.withAlpha(13), // Fixed: withOpacity to withAlpha
+                color: AppColors.secondary
+                    .withAlpha(13), // Fixed: withOpacity to withAlpha
               ),
             ),
           ),
-          
+
           // Main content
           SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -180,8 +185,8 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
                 const SizedBox(height: 24),
                 _buildTabControl(),
                 const SizedBox(height: 16),
-                _activeTab == 'Ringkasan Gizi' 
-                    ? _buildNutritionSummary() 
+                _activeTab == 'Ringkasan Gizi'
+                    ? _buildNutritionSummary()
                     : _buildBMIHistory(),
                 const SizedBox(height: 50),
               ],
@@ -214,7 +219,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
             ),
           ),
           const SizedBox(height: 24),
-          
+
           const Text(
             'Tinggi',
             style: TextStyle(
@@ -223,13 +228,14 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
             ),
           ),
           const SizedBox(height: 8),
-          RoundedInputField( // Fixed: Changed CustomInputField to InputField
+          RoundedInputField(
+            // Fixed: Changed CustomInputField to InputField
             controller: _heightController,
             hintText: 'Masukkan tinggi (cm)',
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 16),
-          
+
           const Text(
             'Berat',
             style: TextStyle(
@@ -238,13 +244,14 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
             ),
           ),
           const SizedBox(height: 8),
-          RoundedInputField( // Fixed: Changed CustomInputField to InputField
+          RoundedInputField(
+            // Fixed: Changed CustomInputField to InputField
             controller: _weightController,
             hintText: 'Masukkan berat (kg)',
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 24),
-          
+
           // Calculate button
           SizedBox(
             width: double.infinity,
@@ -268,7 +275,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
               ),
             ),
           ),
-          
+
           if (_hasCalculated) ...[
             const SizedBox(height: 24),
             _buildBMIResult(),
@@ -282,10 +289,12 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _categoryColor.withAlpha(26), // Fixed: withOpacity(0.1) to withAlpha(26)
+        color: _categoryColor
+            .withAlpha(26), // Fixed: withOpacity(0.1) to withAlpha(26)
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: _categoryColor.withAlpha(77), // Fixed: withOpacity(0.3) to withAlpha(77)
+          color: _categoryColor
+              .withAlpha(77), // Fixed: withOpacity(0.3) to withAlpha(77)
           width: 1,
         ),
       ),
@@ -299,7 +308,8 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: _categoryColor.withAlpha(51), // Fixed: withOpacity(0.2) to withAlpha(51)
+                  color: _categoryColor.withAlpha(
+                      51), // Fixed: withOpacity(0.2) to withAlpha(51)
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -360,10 +370,10 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
   Widget _buildTabControl() {
     return TabSelector(
       tabs: const ['Ringkasan Gizi', 'Riwayat BMI'],
-      selectedTab: _activeTab,
-      onTabSelected: (tab) {
+      selectedIndex: _activeTab == 'Ringkasan Gizi' ? 0 : 1,
+      onTabSelected: (index) {
         setState(() {
-          _activeTab = tab;
+          _activeTab = index == 0 ? 'Ringkasan Gizi' : 'Riwayat BMI';
         });
       },
     );
@@ -431,7 +441,8 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: color.withAlpha(26), // Fixed: withOpacity(0.1) to withAlpha(26)
+            color:
+                color.withAlpha(26), // Fixed: withOpacity(0.1) to withAlpha(26)
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -496,7 +507,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Graph/List toggle
           Container(
             decoration: BoxDecoration(
@@ -512,7 +523,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
             ),
           ),
           const SizedBox(height: 24),
-          
+
           // Tab content
           IndexedStack(
             index: _tabController.index,
@@ -528,7 +539,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
 
   Widget _buildToggleButton(String text, int index) {
     final isSelected = _tabController.index == index;
-    
+
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -588,7 +599,7 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
                   if (value >= _bmiHistory.length || value < 0) {
                     return const SizedBox.shrink();
                   }
-                  
+
                   final date = _bmiHistory[value.toInt()].date;
                   return Padding(
                     padding: const EdgeInsets.only(top: 8.0),
@@ -652,7 +663,8 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
               ),
               belowBarData: BarAreaData(
                 show: true,
-                color: AppColors.primary.withAlpha(26), // Fixed: withOpacity(0.1) to withAlpha(26)
+                color: AppColors.primary
+                    .withAlpha(26), // Fixed: withOpacity(0.1) to withAlpha(26)
               ),
             ),
           ],
@@ -666,7 +678,8 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _bmiHistory.length,
-      separatorBuilder: (context, index) => Divider(color: Colors.grey.shade200),
+      separatorBuilder: (context, index) =>
+          Divider(color: Colors.grey.shade200),
       itemBuilder: (context, index) {
         final record = _bmiHistory[index];
         return Padding(
@@ -733,8 +746,18 @@ class _IBMScreenState extends State<IBMScreen> with SingleTickerProviderStateMix
 
   String _getMonthName(int month) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des'
     ];
     return months[month - 1];
   }

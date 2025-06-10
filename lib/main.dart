@@ -3,6 +3,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gohealth/routers/app_router.dart';
 import 'package:provider/provider.dart';
 import 'package:gohealth/providers/auth_provider.dart';
+import 'package:gohealth/providers/profile_provider.dart';
+import 'package:gohealth/providers/dashboard_provider.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
@@ -10,6 +12,8 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        ChangeNotifierProvider(create: (_) => DashboardProvider()),
       ],
       child: const MyApp(),
     ),

@@ -1,9 +1,12 @@
-
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/profile_model.dart';
+import '../services/user_service.dart';
 
 class ProfileProvider extends ChangeNotifier {
+  final UserService _userService = UserService();
+
   Profile? _profile;
   bool _isLoading = false;
   String? _error;
@@ -13,24 +16,17 @@ class ProfileProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  // Initialize profile
+  // Initialize profile from API
   Future<void> initializeProfile() async {
     _setLoading(true);
     try {
-      // TODO: Implement API call to fetch profile
-      // For now using mock data
-      _profile = Profile(
-        name: "John Doe",
-        email: "john@example.com",
-        photoUrl: null,
-        gender: "Male",
-        age: 25,
-        height: 175,
-        weight: 70,
-        activityLevel: "Moderate",
-        goal: "Maintain weight",
-      );
-      _error = null;
+      final response = await _userService.getProfile();
+      if (response?.success == true && response?.data != null) {
+        _profile = response!.data;
+        _error = null;
+      } else {
+        _error = response?.message ?? 'Failed to load profile';
+      }
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -38,29 +34,44 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  // Update profile
-  Future<void> updateProfile(Profile updatedProfile) async {
+  // Update profile via API
+  Future<bool> updateProfile(Profile updatedProfile) async {
     _setLoading(true);
     try {
-      // TODO: Implement API call to update profile
-      _profile = updatedProfile;
-      _error = null;
+      final response = await _userService.updateProfile(updatedProfile);
+      if (response?.success == true && response?.data != null) {
+        _profile = response!.data;
+        _error = null;
+        return true;
+      } else {
+        _error = response?.message ?? 'Failed to update profile';
+        return false;
+      }
     } catch (e) {
       _error = e.toString();
+      return false;
     } finally {
       _setLoading(false);
     }
   }
 
-  // Update profile photo
-  Future<void> updateProfilePhoto(XFile photo) async {
+  // Update profile photo via API
+  Future<bool> updateProfilePhoto(XFile photo) async {
     _setLoading(true);
     try {
-      // TODO: Implement API call to upload image
-      _profile = _profile?.copyWith(photoUrl: photo.path);
-      _error = null;
+      final file = File(photo.path);
+      final response = await _userService.uploadProfileImage(file);
+      if (response?.success == true && response?.data != null) {
+        _profile = _profile?.copyWith(photoUrl: response!.data);
+        _error = null;
+        return true;
+      } else {
+        _error = response?.message ?? 'Failed to upload image';
+        return false;
+      }
     } catch (e) {
       _error = e.toString();
+      return false;
     } finally {
       _setLoading(false);
     }

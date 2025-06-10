@@ -27,10 +27,9 @@ class FoodLogEntry {
   });
 
   double get calories => food.calories * (quantity / 100);
-
   Map<String, double> get nutrients {
     final result = <String, double>{};
-    food.nutrients.forEach((key, value) {
+    food.nutrients?.forEach((key, value) {
       result[key] = value * (quantity / 100);
     });
     return result;
@@ -66,15 +65,16 @@ class _DailyNutritionTrackerScreenState
     MealType.dinner: 'Makan Malam',
     MealType.snack: 'Camilan',
   };
-
   List<Food> _searchResults = [];
-  Food? _selectedFood;
-
   final List<Food> _foodDatabase = [
     Food(
+      id: '1',
       name: 'Apel',
       calories: 52,
-      weight: '100g',
+      protein: 0.3,
+      carbs: 13.8,
+      fat: 0.2,
+      weight: 100,
       nutrients: {
         'Karbohidrat': 13.8,
         'Protein': 0.3,
@@ -89,9 +89,13 @@ class _DailyNutritionTrackerScreenState
           'Buah apel mengandung serat yang tinggi dan dapat membantu menjaga kesehatan pencernaan.',
     ),
     Food(
+      id: '2',
       name: 'Pisang',
       calories: 89,
-      weight: '100g',
+      protein: 1.1,
+      carbs: 22.8,
+      fat: 0.3,
+      weight: 100,
       nutrients: {
         'Karbohidrat': 22.8,
         'Protein': 1.1,
@@ -106,9 +110,13 @@ class _DailyNutritionTrackerScreenState
           'Pisang kaya akan potasium dan vitamin B6 yang membantu fungsi jantung dan sistem saraf.',
     ),
     Food(
+      id: '3',
       name: 'Brokoli',
       calories: 55,
-      weight: '100g',
+      protein: 2.8,
+      carbs: 11.2,
+      fat: 0.4,
+      weight: 100,
       nutrients: {
         'Karbohidrat': 11.2,
         'Protein': 2.8,
@@ -123,9 +131,13 @@ class _DailyNutritionTrackerScreenState
           'Brokoli adalah sayuran yang kaya vitamin C, vitamin K dan serat.',
     ),
     Food(
+      id: '4',
       name: 'Susu Rendah Lemak',
       calories: 42,
-      weight: '100g',
+      protein: 3.5,
+      carbs: 5.0,
+      fat: 1.0,
+      weight: 100,
       nutrients: {
         'Karbohidrat': 5.0,
         'Protein': 3.5,
@@ -232,7 +244,7 @@ class _DailyNutritionTrackerScreenState
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: const ColorScheme.light(
               primary: AppColors.primary,
               onPrimary: Colors.white,
               onSurface: Colors.black,
@@ -306,7 +318,6 @@ class _DailyNutritionTrackerScreenState
 
   void _selectFood(Food food) {
     setState(() {
-      _selectedFood = food;
       _searchController.text = food.name;
       _searchResults = [];
     });
@@ -323,11 +334,9 @@ class _DailyNutritionTrackerScreenState
       timestamp: DateTime.now(),
       quantity: quantity,
     );
-
     setState(() {
       _foodEntries.add(entry);
       _searchController.clear();
-      _selectedFood = null;
     });
   }
 
@@ -380,10 +389,10 @@ class _DailyNutritionTrackerScreenState
                     const SizedBox(height: 16),
                     TabSelector(
                       tabs: _tabs,
-                      selectedTab: _activeTab,
-                      onTabSelected: (tab) {
+                      selectedIndex: _tabs.indexOf(_activeTab),
+                      onTabSelected: (index) {
                         setState(() {
-                          _activeTab = tab;
+                          _activeTab = _tabs[index];
                         });
                       },
                     ),
@@ -989,19 +998,6 @@ class _DailyNutritionTrackerScreenState
             );
           },
         );
-      },
-    );
-  }
-
-  Widget _buildMealTimeOption(String mealTime, MealType type) {
-    return ListTile(
-      title: Text(mealTime),
-      onTap: () {
-        setState(() {
-          _mealTimeController.text = mealTime;
-          _selectedMealType = type;
-        });
-        Navigator.pop(context);
       },
     );
   }

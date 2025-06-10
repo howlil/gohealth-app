@@ -20,7 +20,7 @@ class FoodSearchResult extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blue.withOpacity(0.1) : Colors.white,
+          color: isSelected ? Colors.blue.withValues(alpha: 0.1) : Colors.white,
           border: Border(
             bottom: BorderSide(
               color: Colors.grey[200]!,
