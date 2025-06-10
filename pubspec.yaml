@@ -16,10 +16,13 @@ dependencies:
   go_router: ^13.2.0
 
   # State Management
-  flutter_riverpod: ^2.4.9
+  provider: ^6.1.1
 
   # Network
   dio: ^5.4.0
+
+  # Authentication
+  google_sign_in: ^6.2.1
 
   # Local Storage
   shared_preferences: ^2.5.3

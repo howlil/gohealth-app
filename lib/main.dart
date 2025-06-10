@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:gohealth/configs/router_config.dart';
+import 'package:gohealth/routers/app_router.dart';
+import 'package:provider/provider.dart';
+import 'package:gohealth/providers/auth_provider.dart';
 
 Future<void> main() async {
   await dotenv.load(fileName: ".env");
   runApp(
-    const ProviderScope(
-      child: MyApp(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+      ],
+      child: const MyApp(),
     ),
   );
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(routerProvider);
+  Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final router = AppRouter.createRouter(authProvider);
 
     return MaterialApp.router(
       title: 'GoHealth',

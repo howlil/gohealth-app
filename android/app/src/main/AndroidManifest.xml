@@ -1,10 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
 
     <application
-        android:label="gohealth"
+        android:label="GoHealth"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:hardwareAccelerated="true"
+        android:enableOnBackInvokedCallback="true">
         
         <!-- Add the Google Sign-In client ID as a separate meta-data tag -->
         <meta-data

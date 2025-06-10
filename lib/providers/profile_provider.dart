@@ -1,144 +1,136 @@
-import 'dart:io';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/profile_model.dart';
 
-final profileProvider =
-    StateNotifierProvider<ProfileNotifier, ProfileState>((ref) {
-  return ProfileNotifier();
-});
+class ProfileProvider extends ChangeNotifier {
+  Profile? _profile;
+  bool _isLoading = false;
+  String? _error;
 
-class ProfileState {
-  final ProfileModel? profile;
-  final bool isLoading;
-  final String? error;
+  // Getters
+  Profile? get profile => _profile;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
-  ProfileState({
-    this.profile,
-    this.isLoading = false,
-    this.error,
-  });
-
-  ProfileState copyWith({
-    ProfileModel? profile,
-    bool? isLoading,
-    String? error,
-  }) {
-    return ProfileState(
-      profile: profile ?? this.profile,
-      isLoading: isLoading ?? this.isLoading,
-      error: error ?? this.error,
-    );
-  }
-}
-
-class ProfileNotifier extends StateNotifier<ProfileState> {
-  ProfileNotifier() : super(ProfileState());
-
-  Future<void> fetchProfile() async {
+  // Initialize profile
+  Future<void> initializeProfile() async {
+    _setLoading(true);
     try {
-      state = state.copyWith(isLoading: true, error: null);
-
       // TODO: Implement API call to fetch profile
-
-      // Temporary mock data
-      final profile = ProfileModel(
-        id: '1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        phoneNumber: '+1234567890',
-        address: '123 Main St',
+      // For now using mock data
+      _profile = Profile(
+        name: "John Doe",
+        email: "john@example.com",
         photoUrl: null,
+        gender: "Male",
+        age: 25,
+        height: 175,
+        weight: 70,
+        activityLevel: "Moderate",
+        goal: "Maintain weight",
       );
-
-      state = state.copyWith(
-        profile: profile,
-        isLoading: false,
-      );
+      _error = null;
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+      _error = e.toString();
+    } finally {
+      _setLoading(false);
     }
   }
 
-  Future<void> updateProfile({
-    String? name,
-    String? email,
-    String? phoneNumber,
-    String? address,
-    String? photoUrl,
-  }) async {
+  // Update profile
+  Future<void> updateProfile(Profile updatedProfile) async {
+    _setLoading(true);
     try {
-      state = state.copyWith(isLoading: true, error: null);
-
-      if (state.profile == null) throw Exception('Profile not initialized');
-
       // TODO: Implement API call to update profile
-
-      final updatedProfile = state.profile!.copyWith(
-        name: name,
-        email: email,
-        phoneNumber: phoneNumber,
-        address: address,
-        photoUrl: photoUrl,
-      );
-
-      state = state.copyWith(
-        profile: updatedProfile,
-        isLoading: false,
-      );
+      _profile = updatedProfile;
+      _error = null;
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+      _error = e.toString();
+    } finally {
+      _setLoading(false);
     }
   }
 
-  Future<void> uploadProfileImage(File image) async {
+  // Update profile photo
+  Future<void> updateProfilePhoto(XFile photo) async {
+    _setLoading(true);
     try {
-      state = state.copyWith(isLoading: true, error: null);
-
-      if (state.profile == null) throw Exception('Profile not initialized');
-
       // TODO: Implement API call to upload image
-      // For now, we'll just simulate a delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Simulate getting back a URL
-      const mockImageUrl = 'https://example.com/profile.jpg';
-
-      final updatedProfile = state.profile!.copyWith(
-        photoUrl: mockImageUrl,
-      );
-
-      state = state.copyWith(
-        profile: updatedProfile,
-        isLoading: false,
-      );
+      _profile = _profile?.copyWith(photoUrl: photo.path);
+      _error = null;
     } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+      _error = e.toString();
+    } finally {
+      _setLoading(false);
     }
   }
 
-  Future<void> logout() async {
-    try {
-      state = state.copyWith(isLoading: true, error: null);
-
-      // TODO: Implement API call to logout
-      // For now, we'll just simulate a delay
-      await Future.delayed(const Duration(seconds: 1));
-
-      state = ProfileState(); // Reset state to initial
-    } catch (e) {
-      state = state.copyWith(
-        error: e.toString(),
-        isLoading: false,
-      );
+  // Update gender
+  void updateGender(String gender) {
+    if (_profile != null) {
+      _profile = _profile!.copyWith(gender: gender);
+      notifyListeners();
     }
+  }
+
+  // Update activity level
+  void updateActivityLevel(String level) {
+    if (_profile != null) {
+      _profile = _profile!.copyWith(activityLevel: level);
+      notifyListeners();
+    }
+  }
+
+  // Update age
+  void updateAge(int age) {
+    if (_profile != null) {
+      _profile = _profile!.copyWith(age: age);
+      notifyListeners();
+    }
+  }
+
+  // Update height
+  void updateHeight(double height) {
+    if (_profile != null) {
+      _profile = _profile!.copyWith(height: height);
+      notifyListeners();
+    }
+  }
+
+  // Update weight
+  void updateWeight(double weight) {
+    if (_profile != null) {
+      _profile = _profile!.copyWith(weight: weight);
+      notifyListeners();
+    }
+  }
+
+  // Update goal
+  void updateGoal(String goal) {
+    if (_profile != null) {
+      _profile = _profile!.copyWith(goal: goal);
+      notifyListeners();
+    }
+  }
+
+  // Logout
+  Future<void> logout() async {
+    _setLoading(true);
+    try {
+      // TODO: Implement API call to logout
+      _profile = null;
+      _error = null;
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Helper method to set loading state
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
   }
 }

@@ -1,87 +1,75 @@
-class ProfileModel {
-  final String id;
+class Profile {
   final String name;
   final String email;
-  final String? phoneNumber;
-  final String? address;
   final String? photoUrl;
-  final String? profileImage;
-  final double? height;
-  final double? weight;
-  final String? gender;
-  final String? activityLevel;
-  final int? age;
+  final String gender;
+  final int age;
+  final double height;
+  final double weight;
+  final String activityLevel;
+  final String goal;
 
-  ProfileModel({
-    required this.id,
+  Profile({
     required this.name,
     required this.email,
-    this.phoneNumber,
-    this.address,
     this.photoUrl,
-    this.profileImage,
-    this.height,
-    this.weight,
-    this.gender,
-    this.activityLevel,
-    this.age,
+    required this.gender,
+    required this.age,
+    required this.height,
+    required this.weight,
+    required this.activityLevel,
+    required this.goal,
   });
 
-  double? get bmr {
-    if (weight == null || height == null || age == null || gender == null) {
-      return null;
-    }
-
-    // Mifflin-St Jeor Equation
-    if (gender!.toUpperCase() == 'MALE') {
-      return (10 * weight!) + (6.25 * height!) - (5 * age!) + 5;
-    } else {
-      return (10 * weight!) + (6.25 * height!) - (5 * age!) - 161;
-    }
-  }
-
-  double? get tdee {
-    if (bmr == null || activityLevel == null) return null;
-
-    final activityMultiplier = switch (activityLevel!.toUpperCase()) {
-      'SEDENTARY' => 1.2,
-      'LIGHTLY_ACTIVE' => 1.375,
-      'MODERATELY_ACTIVE' => 1.55,
-      'VERY_ACTIVE' => 1.725,
-      'EXTRA_ACTIVE' => 1.9,
-      _ => 1.2,
-    };
-
-    return bmr! * activityMultiplier;
-  }
-
-  ProfileModel copyWith({
-    String? id,
+  Profile copyWith({
     String? name,
     String? email,
-    String? phoneNumber,
-    String? address,
     String? photoUrl,
-    String? profileImage,
+    String? gender,
+    int? age,
     double? height,
     double? weight,
-    String? gender,
     String? activityLevel,
-    int? age,
+    String? goal,
   }) {
-    return ProfileModel(
-      id: id ?? this.id,
+    return Profile(
       name: name ?? this.name,
       email: email ?? this.email,
-      phoneNumber: phoneNumber ?? this.phoneNumber,
-      address: address ?? this.address,
       photoUrl: photoUrl ?? this.photoUrl,
-      profileImage: profileImage ?? this.profileImage,
+      gender: gender ?? this.gender,
+      age: age ?? this.age,
       height: height ?? this.height,
       weight: weight ?? this.weight,
-      gender: gender ?? this.gender,
       activityLevel: activityLevel ?? this.activityLevel,
-      age: age ?? this.age,
+      goal: goal ?? this.goal,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'email': email,
+      'photoUrl': photoUrl,
+      'gender': gender,
+      'age': age,
+      'height': height,
+      'weight': weight,
+      'activityLevel': activityLevel,
+      'goal': goal,
+    };
+  }
+
+  factory Profile.fromJson(Map<String, dynamic> json) {
+    return Profile(
+      name: json['name'] as String,
+      email: json['email'] as String,
+      photoUrl: json['photoUrl'] as String?,
+      gender: json['gender'] as String,
+      age: json['age'] as int,
+      height: json['height'] as double,
+      weight: json['weight'] as double,
+      activityLevel: json['activityLevel'] as String,
+      goal: json['goal'] as String,
     );
   }
 }

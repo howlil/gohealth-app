@@ -33,6 +33,11 @@ android {
          manifestPlaceholders.putAll(mapOf(
             "appAuthRedirectScheme" to "com.googleusercontent.apps.845113946067-hvg4pfb2ncjicg8mh8en5ouckugkdbeh"
         ))
+
+        // Add OpenGL ES version requirement
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -42,6 +47,12 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+}
+
+dependencies {
+    implementation("com.google.android.gms:play-services-auth:20.7.0")
+    // Add OpenGL ES dependency
+    implementation("com.google.android.gms:play-services-games-v2:19.0.0")
 }
 
 flutter {

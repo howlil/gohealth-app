@@ -65,14 +65,13 @@ features/
 
   * Use latest Flutter SDK with null safety.
   * Follow Material 3 and responsive design.
-  * Use immutable data classes (freezed, json\_serializable).
   * Use extension methods for DRY code.
   * Use sealed classes for state/result.
   * Use const constructors for static widgets.
 
 * **State Management:**
 
-  * Use Riverpod or Provider (pick one, no mixing).
+  * Use  Provider.
   * Providers hold business logic/state only, no UI code.
   * Always expose loading, error, and data states.
 
