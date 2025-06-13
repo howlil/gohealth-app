@@ -1,13 +1,13 @@
 {
     "project_info": {
         "project_number": "845113946067",
-        "project_id": "gohealth-development",
-        "storage_bucket": "gohealth-development.appspot.com"
+        "project_id": "gohealth-app-demo",
+        "storage_bucket": "gohealth-app-demo.appspot.com"
     },
     "client": [
         {
             "client_info": {
-                "mobilesdk_app_id": "1:845113946067:android:a1b2c3d4e5f6g7h8",
+                "mobilesdk_app_id": "1:845113946067:android:1234567890abcdef",
                 "android_client_info": {
                     "package_name": "com.example.gohealth"
                 }
@@ -20,16 +20,25 @@
                         "package_name": "com.example.gohealth",
                         "certificate_hash": "31cab8b87cfd063193676b1cf75ba38b8a604f7d"
                     }
+                },
+                {
+                    "client_id": "845113946067-ukaickbhgki6n6phesnacsa9b4sgc8hu.apps.googleusercontent.com",
+                    "client_type": 3
                 }
             ],
             "api_key": [
                 {
-                    "current_key": "AIzaSyDc8M9F2LzQ3kN7pR5tY8vB4nJ6mK9lO2x"
+                    "current_key": "AIzaSyC1234567890abcdefghijklmnopqrstuv"
                 }
             ],
             "services": {
                 "appinvite_service": {
-                    "other_platform_oauth_client": []
+                    "other_platform_oauth_client": [
+                        {
+                            "client_id": "845113946067-ukaickbhgki6n6phesnacsa9b4sgc8hu.apps.googleusercontent.com",
+                            "client_type": 3
+                        }
+                    ]
                 }
             }
         }

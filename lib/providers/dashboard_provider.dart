@@ -15,15 +15,20 @@ class DashboardProvider extends ChangeNotifier {
   String? get error => _error;
 
   // Load dashboard data
-  Future<void> loadDashboardData({String? date}) async {
+  Future<void> loadDashboardData() async {
     _setLoading(true);
     try {
-      final response = await _userService.getDashboardData(date: date);
-      if (response?.success == true && response?.data != null) {
-        _dashboardData = DashboardData.fromJson(response!.data!);
-        _error = null;
+      final response = await _userService.getDashboardData();
+      if (response.success && response.data != null) {
+        final data = response.data;
+        if (data != null) {
+          _dashboardData = DashboardData.fromJson(data);
+          _error = null;
+        } else {
+          _error = 'Invalid dashboard data received';
+        }
       } else {
-        _error = response?.message ?? 'Failed to load dashboard data';
+        _error = response.message ?? 'Failed to load dashboard data';
       }
     } catch (e) {
       _error = e.toString();
@@ -41,7 +46,7 @@ class DashboardProvider extends ChangeNotifier {
   Future<void> loadDashboardDataForDate(DateTime date) async {
     final dateString =
         date.toIso8601String().split('T')[0]; // Format: YYYY-MM-DD
-    await loadDashboardData(date: dateString);
+    await loadDashboardData();
   }
 
   // Helper method to set loading state

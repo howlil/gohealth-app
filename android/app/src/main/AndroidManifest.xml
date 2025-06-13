@@ -8,11 +8,10 @@
         android:icon="@mipmap/ic_launcher"
         android:hardwareAccelerated="true"
         android:enableOnBackInvokedCallback="true">
-        
-        <!-- Add the Google Sign-In client ID as a separate meta-data tag -->
+          <!-- Add the Google Sign-In client ID as a separate meta-data tag -->
         <meta-data
             android:name="google-signin-client_id"
-            android:value="845113946067-ukaickbhgki6n6phesnacsa9b4sgc8hu.apps.googleusercontent.com" />
+            android:value="845113946067-hvg4pfb2ncjicg8mh8en5ouckugkdbeh.apps.googleusercontent.com" />
             
         <activity
             android:name=".MainActivity"

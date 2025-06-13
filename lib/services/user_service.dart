@@ -1,224 +1,147 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart' show debugPrint;
-import '../models/profile_model.dart';
-import '../models/api_response_model.dart';
+import 'dart:convert';
+import '../models/user_profile_model.dart';
 import '../utils/env_config.dart';
-import '../api/endpoints.dart';
-import '../utils/app_constants.dart';
-import '../utils/storage_util.dart';
+import '../utils/api_endpoints.dart';
+import '../utils/api_response.dart';
 
 class UserService {
   static final UserService _instance = UserService._internal();
-  factory UserService() => _instance;
+  final String _baseUrl = EnvConfig.apiBaseUrl;
+
+  factory UserService() {
+    return _instance;
+  }
+
   UserService._internal();
 
-  // Get authentication headers
-  Future<Map<String, String>> _getHeaders() async {
-    final token = await StorageUtil.getAccessToken();
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${token ?? ''}',
-    };
-  }
-
-  // Get user profile
-  Future<ApiResponse<Profile>?> getProfile() async {
+  Future<ApiResponse<UserProfileData>> getCurrentUser() async {
     try {
-      final headers = await _getHeaders();
-      final response = await http
-          .get(
-            Uri.parse('${EnvConfig.apiBaseUrl}${ApiEndpoints.userProfile}'),
-            headers: headers,
-          )
-          .timeout(AppConstants.requestTimeout);
+      final response = await http.get(
+        Uri.parse('$_baseUrl${ApiEndpoints.me}'),
+        headers: await _getHeaders(),
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final profile = Profile.fromJson(data['data']);
-        return ApiResponse<Profile>(
-          success: true,
-          message: data['message'] ?? 'Profile retrieved successfully',
-          data: profile,
+        return ApiResponse.success(
+          UserProfileData.fromJson(data['data']),
+          message: data['message'] ?? 'Success',
         );
-      } else if (response.statusCode == 401) {
-        debugPrint('Token expired, need to refresh');
-        return null;
       } else {
-        final errorData = json.decode(response.body);
-        return ApiResponse<Profile>(
-          success: false,
-          message: errorData['message'] ?? 'Failed to get profile',
-          data: null,
+        final error = json.decode(response.body);
+        return ApiResponse.error(
+          error['message'] ?? 'Failed to get user profile',
+          statusCode: response.statusCode,
         );
       }
     } catch (e) {
-      debugPrint('Error getting profile: $e');
-      return ApiResponse<Profile>(
-        success: false,
-        message: 'Network error: ${e.toString()}',
-        data: null,
-      );
+      return ApiResponse.error(e.toString());
     }
   }
 
-  // Update user profile
-  Future<ApiResponse<Profile>?> updateProfile(Profile profile) async {
+  Future<ApiResponse<UserProfileData>> updateProfile(
+      UserProfileData profile) async {
     try {
-      final headers = await _getHeaders();
-      final body = json.encode({
-        'name': profile.name,
-        'age': profile.age,
-        'gender': profile.gender.toUpperCase(),
-        'height': profile.height,
-        'weight': profile.weight,
-        'activityLevel': _mapActivityLevel(profile.activityLevel),
-      });
-
-      final response = await http
-          .put(
-            Uri.parse('${EnvConfig.apiBaseUrl}${ApiEndpoints.userProfile}'),
-            headers: headers,
-            body: body,
-          )
-          .timeout(AppConstants.requestTimeout);
+      final response = await http.put(
+        Uri.parse('$_baseUrl${ApiEndpoints.updateProfile}'),
+        headers: await _getHeaders(),
+        body: json.encode(profile.toJson()),
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final updatedProfile = Profile.fromJson(data['data']);
-        return ApiResponse<Profile>(
-          success: true,
+        return ApiResponse.success(
+          UserProfileData.fromJson(data['data']),
           message: data['message'] ?? 'Profile updated successfully',
-          data: updatedProfile,
         );
-      } else if (response.statusCode == 401) {
-        debugPrint('Token expired, need to refresh');
-        return null;
       } else {
-        final errorData = json.decode(response.body);
-        return ApiResponse<Profile>(
-          success: false,
-          message: errorData['message'] ?? 'Failed to update profile',
-          data: null,
+        final error = json.decode(response.body);
+        return ApiResponse.error(
+          error['message'] ?? 'Failed to update profile',
+          statusCode: response.statusCode,
         );
       }
     } catch (e) {
-      debugPrint('Error updating profile: $e');
-      return ApiResponse<Profile>(
-        success: false,
-        message: 'Network error: ${e.toString()}',
-        data: null,
-      );
+      return ApiResponse.error(e.toString());
     }
   }
 
-  // Upload profile image
-  Future<ApiResponse<String>?> uploadProfileImage(File imageFile) async {
+  Future<ApiResponse<String>> uploadProfileImage(File image) async {
     try {
-      final token = await StorageUtil.getAccessToken();
-      final uri =
-          Uri.parse('${EnvConfig.apiBaseUrl}${ApiEndpoints.userProfileImage}');
-
-      final request = http.MultipartRequest('POST', uri);
-      request.headers['Authorization'] = 'Bearer ${token ?? ''}';
-      request.files
-          .add(await http.MultipartFile.fromPath('image', imageFile.path));
-
-      final response =
-          await request.send().timeout(AppConstants.requestTimeout);
-      final responseBody = await response.stream.bytesToString();
-
-      if (response.statusCode == 200) {
-        final data = json.decode(responseBody);
-        return ApiResponse<String>(
-          success: true,
-          message: data['message'] ?? 'Image uploaded successfully',
-          data: data['data']['profileImage'],
-        );
-      } else if (response.statusCode == 401) {
-        debugPrint('Token expired, need to refresh');
-        return null;
-      } else {
-        final errorData = json.decode(responseBody);
-        return ApiResponse<String>(
-          success: false,
-          message: errorData['message'] ?? 'Failed to upload image',
-          data: null,
-        );
-      }
-    } catch (e) {
-      debugPrint('Error uploading image: $e');
-      return ApiResponse<String>(
-        success: false,
-        message: 'Network error: ${e.toString()}',
-        data: null,
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('$_baseUrl${ApiEndpoints.uploadProfileImage}'),
       );
-    }
-  }
 
-  // Get dashboard data
-  Future<ApiResponse<Map<String, dynamic>>?> getDashboardData(
-      {String? date}) async {
-    try {
-      final headers = await _getHeaders();
-      String url = '${EnvConfig.apiBaseUrl}${ApiEndpoints.userDashboard}';
-      if (date != null) {
-        url += '?date=$date';
-      }
+      request.headers.addAll(await _getHeaders());
+      request.files.add(
+        await http.MultipartFile.fromPath('image', image.path),
+      );
 
-      final response = await http
-          .get(
-            Uri.parse(url),
-            headers: headers,
-          )
-          .timeout(AppConstants.requestTimeout);
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return ApiResponse<Map<String, dynamic>>(
-          success: true,
-          message: data['message'] ?? 'Dashboard data retrieved successfully',
-          data: data['data'],
+        return ApiResponse.success(
+          data['data']['imageUrl'],
+          message: data['message'] ?? 'Image uploaded successfully',
         );
-      } else if (response.statusCode == 401) {
-        debugPrint('Token expired, need to refresh');
-        return null;
       } else {
-        final errorData = json.decode(response.body);
-        return ApiResponse<Map<String, dynamic>>(
-          success: false,
-          message: errorData['message'] ?? 'Failed to get dashboard data',
-          data: null,
+        final error = json.decode(response.body);
+        return ApiResponse.error(
+          error['message'] ?? 'Failed to upload image',
+          statusCode: response.statusCode,
         );
       }
     } catch (e) {
-      debugPrint('Error getting dashboard data: $e');
-      return ApiResponse<Map<String, dynamic>>(
-        success: false,
-        message: 'Network error: ${e.toString()}',
-        data: null,
-      );
+      return ApiResponse.error(e.toString());
     }
   }
 
-  // Helper method to map activity level to backend format
-  String _mapActivityLevel(String activityLevel) {
-    switch (activityLevel.toLowerCase()) {
-      case 'sedentary':
-        return 'SEDENTARY';
-      case 'light':
-      case 'lightly':
-        return 'LIGHTLY';
-      case 'moderate':
-      case 'moderately active':
-        return 'MODERATELY_ACTIVE';
-      case 'very active':
-        return 'VERY_ACTIVE';
-      case 'extra active':
-        return 'EXTRA_ACTIVE';
-      default:
-        return 'MODERATELY_ACTIVE';
+  Future<ApiResponse<Map<String, dynamic>>> getDashboardData() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$_baseUrl${ApiEndpoints.dashboard}'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return ApiResponse.success(
+          data['data'],
+          message: data['message'] ?? 'Success',
+        );
+      } else {
+        final error = json.decode(response.body);
+        return ApiResponse.error(
+          error['message'] ?? 'Failed to get dashboard data',
+          statusCode: response.statusCode,
+        );
+      }
+    } catch (e) {
+      return ApiResponse.error(e.toString());
     }
+  }
+
+  Future<Map<String, String>> _getHeaders() async {
+    final headers = {
+      'Content-Type': 'application/json',
+    };
+
+    // Add authorization header if token exists
+    final token = await _getToken();
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    return headers;
+  }
+
+  Future<String?> _getToken() async {
+    // Implement token retrieval logic here
+    return null;
   }
 }

@@ -9,6 +9,7 @@ import '../screens/profile_screen.dart';
 import '../screens/food_screen.dart';
 import '../screens/ibm_screen.dart';
 import '../screens/daily_nutrition_tracker_screen.dart';
+import '../screens/registration_screen.dart';
 
 class AppRouter {
   static GoRouter createRouter(AuthProvider authProvider) {
@@ -17,6 +18,7 @@ class AppRouter {
       redirect: (context, state) {
         final isLoggedIn = authProvider.isLoggedIn;
         final isGoingToLogin = state.matchedLocation == '/login';
+        final isGoingToRegister = state.matchedLocation == '/register';
         final isGoingToSplash = state.matchedLocation == '/';
 
         // Don't redirect if going to splash screen
@@ -25,10 +27,10 @@ class AppRouter {
         }
 
         // Handle auth redirects
-        if (!isLoggedIn && !isGoingToLogin) {
+        if (!isLoggedIn && !isGoingToLogin && !isGoingToRegister) {
           return '/login';
         }
-        if (isLoggedIn && isGoingToLogin) {
+        if (isLoggedIn && (isGoingToLogin || isGoingToRegister)) {
           return '/home';
         }
         return null;
@@ -41,6 +43,10 @@ class AppRouter {
         GoRoute(
           path: '/login',
           builder: (context, state) => const LoginScreen() as Widget,
+        ),
+        GoRoute(
+          path: '/register',
+          builder: (context, state) => const RegistrationScreen() as Widget,
         ),
         GoRoute(
           path: '/home',

@@ -3,15 +3,19 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show debugPrint;
 import '../models/api_response_model.dart';
 import '../models/food_model.dart';
+import '../models/meal_type.dart';
 import '../utils/env_config.dart';
-import '../api/endpoints.dart';
+import '../utils/api_endpoints.dart';
 import '../utils/app_constants.dart';
 import '../utils/storage_util.dart';
+import '../utils/api_service.dart';
+import '../utils/http_exception.dart';
 
 class MealService {
-  static final MealService _instance = MealService._internal();
-  factory MealService() => _instance;
-  MealService._internal();
+  final String baseUrl;
+  final http.Client _client;
+
+  MealService({required this.baseUrl}) : _client = http.Client();
 
   // Get authentication headers
   Future<Map<String, String>> _getHeaders() async {
@@ -26,12 +30,13 @@ class MealService {
   Future<ApiResponse<List<Food>>?> getMeals({String? date}) async {
     try {
       final headers = await _getHeaders();
-      String url = '${EnvConfig.apiBaseUrl}${ApiEndpoints.meals}';
+      String url =
+          '$baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.nutrition}/meals';
       if (date != null) {
         url += '?date=$date';
       }
 
-      final response = await http
+      final response = await _client
           .get(
             Uri.parse(url),
             headers: headers,
@@ -86,9 +91,10 @@ class MealService {
         'date': date ?? DateTime.now().toIso8601String().split('T')[0],
       });
 
-      final response = await http
+      final response = await _client
           .post(
-            Uri.parse('${EnvConfig.apiBaseUrl}${ApiEndpoints.meals}'),
+            Uri.parse(
+                '$baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.nutrition}/meals'),
             headers: headers,
             body: body,
           )
@@ -128,9 +134,10 @@ class MealService {
     try {
       final headers = await _getHeaders();
 
-      final response = await http
+      final response = await _client
           .delete(
-            Uri.parse('${EnvConfig.apiBaseUrl}${ApiEndpoints.meals}/$mealId'),
+            Uri.parse(
+                '$baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.nutrition}/meals/$mealId'),
             headers: headers,
           )
           .timeout(AppConstants.requestTimeout);

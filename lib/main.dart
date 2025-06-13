@@ -5,9 +5,19 @@ import 'package:provider/provider.dart';
 import 'package:gohealth/providers/auth_provider.dart';
 import 'package:gohealth/providers/profile_provider.dart';
 import 'package:gohealth/providers/dashboard_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   await dotenv.load(fileName: ".env");
+
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL'] ?? '',
+    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+  );
+
   runApp(
     MultiProvider(
       providers: [
@@ -25,16 +35,26 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final router = AppRouter.createRouter(authProvider);
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
+      ],
+      child: Builder(
+        builder: (context) {
+          final authProvider = Provider.of<AuthProvider>(context);
+          final router = AppRouter.createRouter(authProvider);
 
-    return MaterialApp.router(
-      title: 'GoHealth',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-        useMaterial3: true,
+          return MaterialApp.router(
+            title: 'GoHealth',
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+              useMaterial3: true,
+            ),
+            routerConfig: router,
+          );
+        },
       ),
-      routerConfig: router,
     );
   }
 }

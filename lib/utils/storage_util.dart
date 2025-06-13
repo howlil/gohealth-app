@@ -1,28 +1,11 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageUtil {
-  static const String _tokenKey = 'auth_token';
   static const String _accessTokenKey = 'access_token';
-  static const String _refreshTokenKey = 'refresh_token';
+  static const String _userDataKey = 'user_data';
 
-  // Legacy token methods
-  Future<void> saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
-  }
-
-  Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
-  }
-
-  Future<void> clearToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-  }
-
-  // New auth token methods
-  static Future<void> saveAccessToken(String token) async {
+  static Future<void> setAccessToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_accessTokenKey, token);
   }
@@ -32,20 +15,23 @@ class StorageUtil {
     return prefs.getString(_accessTokenKey);
   }
 
-  static Future<void> saveRefreshToken(String token) async {
+  static Future<void> setUserData(Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_refreshTokenKey, token);
+    await prefs.setString(_userDataKey, json.encode(userData));
   }
 
-  static Future<String?> getRefreshToken() async {
+  static Future<Map<String, dynamic>?> getUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_refreshTokenKey);
+    final userData = prefs.getString(_userDataKey);
+    if (userData != null) {
+      return json.decode(userData) as Map<String, dynamic>;
+    }
+    return null;
   }
 
-  static Future<void> clearTokens() async {
+  static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_accessTokenKey);
-    await prefs.remove(_refreshTokenKey);
-    await prefs.remove(_tokenKey);
+    await prefs.remove(_userDataKey);
   }
 }

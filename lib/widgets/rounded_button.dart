@@ -2,54 +2,60 @@ import 'package:flutter/material.dart';
 
 class RoundedButton extends StatelessWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final Color color;
   final Color textColor;
   final double width;
   final double height;
   final double fontSize;
-  final IconData? icon;
+  final Widget? icon;
   final bool isLoading;
 
   const RoundedButton({
-    super.key,
+    Key? key,
     required this.text,
     required this.onPressed,
-    this.color = Colors.black,
+    this.color = Colors.blue,
     this.textColor = Colors.white,
     this.width = double.infinity,
-    this.height = 48,
-    this.fontSize = 14,
+    this.height = 50.0,
+    this.fontSize = 16,
     this.icon,
     this.isLoading = false,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
+    return Container(
       width: width,
       height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(100),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
           foregroundColor: textColor,
-          elevation: 0,
-          shadowColor: color.withValues(alpha: 0.4),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(100),
           ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 0,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          elevation: 0,
         ),
         child: isLoading
             ? SizedBox(
-                width: fontSize + 4,
-                height: fontSize + 4,
+                height: 20,
+                width: 20,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
+                  strokeWidth: 2.0,
                   valueColor: AlwaysStoppedAnimation<Color>(textColor),
                 ),
               )
@@ -57,7 +63,7 @@ class RoundedButton extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (icon != null) ...[
-                    Icon(icon, size: fontSize),
+                    icon!,
                     const SizedBox(width: 8),
                   ],
                   Text(
@@ -65,7 +71,7 @@ class RoundedButton extends StatelessWidget {
                     style: TextStyle(
                       fontSize: fontSize,
                       fontWeight: FontWeight.w600,
-                      letterSpacing: 0.3,
+                      color: textColor,
                     ),
                   ),
                 ],

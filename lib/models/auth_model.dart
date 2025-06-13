@@ -1,96 +1,103 @@
 class AuthModel {
   final String id;
-  final String email;
   final String name;
-  final String? photoUrl;
-  final int? age;
+  final String email;
+  final String token;
+  final String? profileImage;
   final String? gender;
+  final int? age;
   final double? height;
   final double? weight;
   final String? activityLevel;
-  final String? profileImage;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
   AuthModel({
     required this.id,
-    required this.email,
     required this.name,
-    this.photoUrl,
-    this.age,
+    required this.email,
+    required this.token,
+    this.profileImage,
     this.gender,
+    this.age,
     this.height,
     this.weight,
     this.activityLevel,
-    this.profileImage,
     this.createdAt,
     this.updatedAt,
   });
 
-  factory AuthModel.fromJson(Map<String, dynamic> json) {
-    return AuthModel(
-      id: json['id'] as String,
-      email: json['email'] as String,
-      name: json['name'] as String,
-      photoUrl: json['photoUrl'] as String?,
-      age: json['age'] as int?,
-      gender: json['gender'] as String?,
-      height: json['height'] as double?,
-      weight: json['weight'] as double?,
-      activityLevel: json['activityLevel'] as String?,
-      profileImage: json['profileImage'] as String?,
-      createdAt:
-          json['createdAt'] != null ? DateTime.parse(json['createdAt']) : null,
-      updatedAt:
-          json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
-    );
-  }
-
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'email': email,
       'name': name,
-      'photoUrl': photoUrl,
-      'age': age,
+      'email': email,
+      'token': token,
+      'profileImage': profileImage,
       'gender': gender,
+      'age': age,
       'height': height,
       'weight': weight,
       'activityLevel': activityLevel,
-      'profileImage': profileImage,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 
+  factory AuthModel.fromJson(Map<String, dynamic> json) {
+    return AuthModel(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      token: json['token']?.toString() ?? '',
+      profileImage: json['profileImage']?.toString(),
+      gender: json['gender']?.toString(),
+      age: json['age'] as int?,
+      height: json['height'] != null ? (json['height'] as num).toDouble() : null,
+      weight: json['weight'] != null ? (json['weight'] as num).toDouble() : null,
+      activityLevel: json['activityLevel']?.toString(),
+      createdAt: json['createdAt'] != null 
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
+      updatedAt: json['updatedAt'] != null 
+          ? DateTime.tryParse(json['updatedAt'].toString())
+          : null,
+    );
+  }
+
   AuthModel copyWith({
     String? id,
-    String? email,
     String? name,
-    String? photoUrl,
-    int? age,
+    String? email,
+    String? token,
+    String? profileImage,
     String? gender,
+    int? age,
     double? height,
     double? weight,
     String? activityLevel,
-    String? profileImage,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
     return AuthModel(
       id: id ?? this.id,
-      email: email ?? this.email,
       name: name ?? this.name,
-      photoUrl: photoUrl ?? this.photoUrl,
-      age: age ?? this.age,
+      email: email ?? this.email,
+      token: token ?? this.token,
+      profileImage: profileImage ?? this.profileImage,
       gender: gender ?? this.gender,
+      age: age ?? this.age,
       height: height ?? this.height,
       weight: weight ?? this.weight,
       activityLevel: activityLevel ?? this.activityLevel,
-      profileImage: profileImage ?? this.profileImage,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
+  }
+
+  @override
+  String toString() {
+    return 'AuthModel(id: $id, name: $name, email: $email, token: $token, profileImage: $profileImage, gender: $gender, age: $age, height: $height, weight: $weight, activityLevel: $activityLevel, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 }
 
@@ -116,8 +123,8 @@ class AuthResponse {
   factory AuthResponse.fromJson(Map<String, dynamic> json) {
     return AuthResponse(
       data: AuthResponseData.fromJson(json['data'] as Map<String, dynamic>),
-      message: json['message'] as String,
-      success: json['success'] as bool,
+      message: json['message'] as String? ?? 'Unknown message',
+      success: json['success'] as bool? ?? false,
     );
   }
 }
@@ -136,8 +143,8 @@ class AuthResponseData {
   factory AuthResponseData.fromJson(Map<String, dynamic> json) {
     return AuthResponseData(
       user: AuthModel.fromJson(json['user'] as Map<String, dynamic>),
-      accessToken: json['accessToken'] as String,
-      refreshToken: json['refreshToken'] as String,
+      accessToken: json['accessToken']?.toString() ?? '',
+      refreshToken: json['refreshToken']?.toString() ?? '',
     );
   }
 }
@@ -153,8 +160,8 @@ class AuthTokens {
 
   factory AuthTokens.fromJson(Map<String, dynamic> json) {
     return AuthTokens(
-      accessToken: json['accessToken'] as String,
-      refreshToken: json['refreshToken'] as String,
+      accessToken: json['accessToken']?.toString() ?? '',
+      refreshToken: json['refreshToken']?.toString() ?? '',
     );
   }
 

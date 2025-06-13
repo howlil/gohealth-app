@@ -24,25 +24,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _heightController;
   late TextEditingController _weightController;
   String _gender = 'Pria';
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
 
-    // Initialize controllers
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final user = authProvider.user;
+    // Initialize controllers with default values
+    _nameController = TextEditingController(text: 'Loading...');
+    _ageController = TextEditingController(text: '');
+    _heightController = TextEditingController(text: '');
+    _weightController = TextEditingController(text: '');
 
-    _nameController = TextEditingController(text: user?.name ?? 'Ulil');
-    _ageController = TextEditingController(text: user?.age?.toString() ?? '21');
-    _heightController =
-        TextEditingController(text: user?.height?.toString() ?? '170');
-    _weightController =
-        TextEditingController(text: user?.weight?.toString() ?? '55');
+    // Load profile data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfileData();
+    });
+  }
 
-    // Set gender based on user data
-    if (user?.gender != null) {
-      _gender = user!.gender == 'MALE' ? 'Pria' : 'Wanita';
+  Future<void> _loadProfileData() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Get profile provider
+      final profileProvider =
+          Provider.of<ProfileProvider>(context, listen: false);
+
+      // Initialize profile if not already initialized
+      if (!profileProvider.isInitialized) {
+        await profileProvider.initializeProfile();
+      }
+
+      // Update controllers with profile data
+      final profile = profileProvider.profile;
+      if (profile != null) {
+        setState(() {
+          _nameController.text = profile.name;
+          _ageController.text = profile.age?.toString() ?? '';
+          _heightController.text = profile.height?.toString() ?? '';
+          _weightController.text = profile.weight?.toString() ?? '';
+          _gender = profile.gender == 'MALE' ? 'Pria' : 'Wanita';
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading profile data: $e');
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load profile: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -95,6 +137,73 @@ class _ProfileScreenState extends State<ProfileScreen> {
         false;
   }
 
+  Future<void> _saveProfile() async {
+    try {
+      final profileProvider =
+          Provider.of<ProfileProvider>(context, listen: false);
+      final profile = profileProvider.profile;
+
+      if (profile == null) {
+        throw Exception('Profile not loaded');
+      }
+
+      // Update profile with form values
+      final updatedProfile = profile.copyWith(
+        name: _nameController.text,
+        age: int.tryParse(_ageController.text),
+        gender: _gender == 'Pria' ? 'MALE' : 'FEMALE',
+        height: double.tryParse(_heightController.text),
+        weight: double.tryParse(_weightController.text),
+      );
+
+      // Save profile
+      final success = await profileProvider.updateProfile(updatedProfile);
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Profil berhasil disimpan'),
+              backgroundColor: AppColors.primary,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(10),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal menyimpan profil: ${profileProvider.error}'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(10),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error saving profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menyimpan profil: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(10),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppLayout(
@@ -131,146 +240,163 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
 
           // Main content
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                children: [
-                  // Profile header
-                  _buildProfileHeader(),
-
-                  const SizedBox(height: 12),
-
-                  // Personal information section
-                  GlassContainer(
+          _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(),
+                )
+              : SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildSectionTitle('Informasi Pribadi'),
+                        // Profile header
+                        _buildProfileHeader(),
+
                         const SizedBox(height: 12),
-                        _buildFormField(
-                            'Nama', _nameController, TextInputType.text),
-                        _buildFormField(
-                            'Usia', _ageController, TextInputType.number),
-                        _buildGenderSelector(),
-                        _buildFormField('Tinggi (cm)', _heightController,
-                            TextInputType.number),
-                        _buildFormField('Berat (kg)', _weightController,
-                            TextInputType.number),
-                        const SizedBox(height: 12),
-                        RoundedButton(
-                          text: "Simpan Profil",
-                          onPressed: _saveProfile,
-                          color: AppColors.primary,
-                        ),
-                      ],
-                    ),
-                  ),
 
-                  const SizedBox(height: 16),
-
-                  // Account section
-                  GlassContainer(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildSectionTitle('Akun'),
-                        const SizedBox(height: 12),
-                        _buildAccountOption('Ubah Password', Icons.lock_outline,
-                            () {
-                          // Handle password change
-                        }),
-                        _buildAccountOption(
-                            'Notifikasi', Icons.notifications_none_outlined,
-                            () {
-                          // Handle notifications
-                        }),
-                        _buildAccountOption('Privasi', Icons.shield_outlined,
-                            () {
-                          // Handle privacy settings
-                        }),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Logout button
-                  Consumer<AuthProvider>(
-                    builder: (context, authProvider, child) {
-                      // Only show logout if user is logged in
-                      if (!authProvider.isLoggedIn) {
-                        return const SizedBox.shrink();
-                      }
-
-                      return GlassContainer(
-                        color: Colors.red.withValues(alpha: 0.05),
-                        borderColor: Colors.red.withValues(alpha: 0.2),
-                        child: InkWell(
-                          onTap: authProvider.isLoading ? null : _handleLogout,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                if (authProvider.isLoading)
-                                  SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.red.shade700,
-                                      ),
-                                    ),
-                                  )
-                                else
-                                  Icon(
-                                    Icons.logout_rounded,
-                                    color: Colors.red.shade700,
-                                    size: 20,
-                                  ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  authProvider.isLoading
-                                      ? "Keluar..."
-                                      : "Keluar",
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.red.shade700,
-                                  ),
-                                ),
-                              ],
-                            ),
+                        // Personal information section
+                        GlassContainer(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionTitle('Informasi Pribadi'),
+                              const SizedBox(height: 12),
+                              _buildFormField(
+                                  'Nama', _nameController, TextInputType.text),
+                              _buildFormField(
+                                  'Usia', _ageController, TextInputType.number),
+                              _buildGenderSelector(),
+                              _buildFormField('Tinggi (cm)', _heightController,
+                                  TextInputType.number),
+                              _buildFormField('Berat (kg)', _weightController,
+                                  TextInputType.number),
+                              const SizedBox(height: 12),
+                              Consumer<ProfileProvider>(
+                                builder: (context, provider, child) {
+                                  return RoundedButton(
+                                    text: provider.isLoading
+                                        ? "Menyimpan..."
+                                        : "Simpan Profil",
+                                    onPressed: provider.isLoading
+                                        ? null
+                                        : _saveProfile,
+                                    color: AppColors.primary,
+                                    isLoading: provider.isLoading,
+                                  );
+                                },
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  ),
 
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-          ),
+                        const SizedBox(height: 16),
+
+                        // Account section
+                        GlassContainer(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildSectionTitle('Akun'),
+                              const SizedBox(height: 12),
+                              _buildAccountOption(
+                                  'Ubah Password', Icons.lock_outline, () {
+                                // Handle password change
+                              }),
+                              _buildAccountOption('Notifikasi',
+                                  Icons.notifications_none_outlined, () {
+                                // Handle notifications
+                              }),
+                              _buildAccountOption(
+                                  'Privasi', Icons.shield_outlined, () {
+                                // Handle privacy settings
+                              }),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Logout button
+                        Consumer<AuthProvider>(
+                          builder: (context, authProvider, child) {
+                            // Only show logout if user is logged in
+                            if (!authProvider.isLoggedIn) {
+                              return const SizedBox.shrink();
+                            }
+
+                            return GlassContainer(
+                              color: Colors.red.withValues(alpha: 0.05),
+                              borderColor: Colors.red.withValues(alpha: 0.2),
+                              child: InkWell(
+                                onTap: authProvider.isLoading
+                                    ? null
+                                    : _handleLogout,
+                                borderRadius: BorderRadius.circular(12),
+                                child: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 12),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      if (authProvider.isLoading)
+                                        SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              Colors.red.shade700,
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        Icon(
+                                          Icons.logout_rounded,
+                                          color: Colors.red.shade700,
+                                          size: 20,
+                                        ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        authProvider.isLoading
+                                            ? "Keluar..."
+                                            : "Keluar",
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.red.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
         ],
       ),
     );
   }
 
   Widget _buildProfileHeader() {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        final user = authProvider.user;
+    return Consumer<ProfileProvider>(
+      builder: (context, profileProvider, child) {
+        final profile = profileProvider.profile;
 
         return Column(
           children: [
             const SizedBox(height: 12),
             ProfileAvatar(
-              imageUrl:
-                  user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
+              imageUrl: profile?.photoUrl != null
+                  ? NetworkImage(profile!.photoUrl!)
+                  : null,
               size: 80,
               onTap: () {
                 // Handle tap on profile pic
@@ -278,40 +404,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              user?.name ?? 'User',
+              profile?.name ?? 'User',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
-              user?.email ?? "user@email.com",
+              profile?.email ?? "user@email.com",
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey.shade600,
               ),
             ),
-            if (!authProvider.isLoggedIn)
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppColors.warning.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Text(
-                  'Mode Tamu',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.warning,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
+            Consumer<AuthProvider>(
+              builder: (context, authProvider, child) {
+                if (!authProvider.isLoggedIn) {
+                  return Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.warning.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Text(
+                      'Mode Tamu',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.warning,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
+            ),
           ],
         );
       },
@@ -438,21 +570,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  void _saveProfile() {
-    // Show subtle animation or indicator
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Profil berhasil disimpan'),
-        backgroundColor: AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        margin: const EdgeInsets.all(10),
       ),
     );
   }

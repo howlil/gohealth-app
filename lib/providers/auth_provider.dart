@@ -1,87 +1,97 @@
 import 'package:flutter/material.dart';
-import 'package:gohealth/models/auth_model.dart';
-import 'package:gohealth/services/auth_service.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import '../models/auth_model.dart';
+import '../models/register_model.dart';
+import '../services/auth_service.dart';
+import '../utils/storage_util.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
-  AuthModel? _user;
+  AuthModel? _auth;
   bool _isLoading = false;
-  bool _isLoggedIn = false;
-  bool _isInitialized = false;
   String? _error;
-  AuthStatus _status = AuthStatus.initial;
 
   // Getters
-  AuthModel? get user => _user;
+  AuthModel? get auth => _auth;
   bool get isLoading => _isLoading;
-  bool get isLoggedIn => _isLoggedIn;
-  bool get isInitialized => _isInitialized;
   String? get error => _error;
-  AuthStatus get status => _status;
+  bool get isLoggedIn => _auth != null;
 
   // Initialize auth state
-  Future<void> init() async {
-    if (_isInitialized) return;
-
+  Future<void> initializeAuth() async {
     _setLoading(true);
-    _setStatus(AuthStatus.loading);
+    _clearError();
 
     try {
-      _isLoggedIn = await _authService.isLoggedIn();
-      if (_isLoggedIn) {
-        _user = await _authService.getStoredUser();
-        final currentUser = await _authService.getCurrentUser();
-        if (currentUser != null) {
-          _user = currentUser;
-          _setStatus(AuthStatus.authenticated);
-        } else {
-          _setStatus(AuthStatus.unauthenticated);
+      final token = await StorageUtil.getAccessToken();
+      if (token != null) {
+        final userData = await StorageUtil.getUserData();
+        if (userData != null) {
+          _auth = AuthModel.fromJson(userData);
         }
-      } else {
-        _setStatus(AuthStatus.unauthenticated);
       }
-      _isInitialized = true;
     } catch (e) {
+      debugPrint('Error initializing auth: $e');
       _error = e.toString();
-      _setStatus(AuthStatus.error);
-      debugPrint('Auth initialization error: $e');
     } finally {
       _setLoading(false);
     }
   }
 
-  // Sign in with Google
-  Future<bool> signInWithGoogle() async {
-    _setLoading(true);
-    _clearError();
-    _setStatus(AuthStatus.loading);
-
+  // Login
+  Future<bool> login(String email, String password) async {
     try {
-      final GoogleSignInAccount? googleUser =
-          await _authService.signInWithGoogle();
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
 
-      if (googleUser != null) {
-        // Create AuthModel from GoogleSignInAccount
-        _user = AuthModel(
-          id: googleUser.id,
-          email: googleUser.email,
-          name: googleUser.displayName ?? '',
-          photoUrl: googleUser.photoUrl,
-        );
-
-        _isLoggedIn = true;
-        _setStatus(AuthStatus.authenticated);
-        return true;
+      if (email.isEmpty || password.isEmpty) {
+        _error = 'Please enter both email and password';
+        return false;
       }
 
-      _setStatus(AuthStatus.unauthenticated);
-      return false;
+      final response = await _authService.login(email, password);
+
+      if (response.success && response.data != null) {
+        _auth = response.data;
+        await StorageUtil.setAccessToken(response.data!.token);
+        await StorageUtil.setUserData(response.data!.toJson());
+        _error = null;
+        return true;
+      } else {
+        _error = response.message;
+        return false;
+      }
     } catch (e) {
       _error = e.toString();
-      _setStatus(AuthStatus.error);
-      debugPrint('Google sign in error: $e');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Register
+  Future<bool> register(RegisterModel registerData) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final response = await _authService.register(registerData);
+      if (response?.success == true && response?.data != null) {
+        _auth = response!.data;
+        await StorageUtil.setAccessToken(response.data!.token);
+        await StorageUtil.setUserData(response.data!.toJson());
+        debugPrint('Registration successful');
+        return true;
+      } else {
+        _error = response?.message ?? 'Registration failed';
+        debugPrint('Registration failed: $_error');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Registration error: $e');
+      _error = e.toString();
       return false;
     } finally {
       _setLoading(false);
@@ -91,63 +101,46 @@ class AuthProvider extends ChangeNotifier {
   // Logout
   Future<void> logout() async {
     _setLoading(true);
-    _setStatus(AuthStatus.loading);
+    _clearError();
 
     try {
-      await _authService.logout();
-      _user = null;
-      _isLoggedIn = false;
-      _setStatus(AuthStatus.unauthenticated);
-      _clearError();
+      await StorageUtil.clearAll();
+      _auth = null;
+      debugPrint('Logout successful');
     } catch (e) {
-      _error = e.toString();
-      _setStatus(AuthStatus.error);
       debugPrint('Logout error: $e');
+      _error = e.toString();
     } finally {
       _setLoading(false);
     }
   }
 
-  // Get current user
-  Future<void> getCurrentUser() async {
+  // Google Sign In
+  Future<bool> signInWithGoogle() async {
+    _setLoading(true);
+    _clearError();
+
     try {
-      final currentUser = await _authService.getCurrentUser();
-      if (currentUser != null) {
-        _user = currentUser;
-        _setStatus(AuthStatus.authenticated);
-      } else {
-        _setStatus(AuthStatus.unauthenticated);
-      }
-      notifyListeners();
+      // TODO: Implement Google Sign In
+      return false;
     } catch (e) {
+      debugPrint('Google sign in error: $e');
       _error = e.toString();
-      _setStatus(AuthStatus.error);
-      debugPrint('Get current user error: $e');
-      notifyListeners();
+      return false;
+    } finally {
+      _setLoading(false);
     }
   }
 
-  // Private methods
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
-
+  // Clear error
   void _clearError() {
     _error = null;
     notifyListeners();
   }
 
-  void _setStatus(AuthStatus status) {
-    _status = status;
+  // Helper method to set loading state
+  void _setLoading(bool loading) {
+    _isLoading = loading;
     notifyListeners();
   }
-}
-
-enum AuthStatus {
-  initial,
-  loading,
-  authenticated,
-  unauthenticated,
-  error,
 }

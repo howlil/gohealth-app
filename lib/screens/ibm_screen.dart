@@ -6,6 +6,7 @@ import '../widgets/inputs/rounded_input_field.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/inputs/tab_selector.dart';
 import '../models/ibm_history.dart';
+import '../services/bmi_service.dart';
 
 class IBMScreen extends StatefulWidget {
   const IBMScreen({super.key});
@@ -25,41 +26,83 @@ class _IBMScreenState extends State<IBMScreen>
   String _category = '';
   Color _categoryColor = Colors.transparent;
   bool _hasCalculated = false;
+  bool _isLoading = false;
+  bool _isLoadingHistory = false;
+  bool _hasMoreData = true;
+  String? _errorMessage;
 
   late TabController _tabController;
   String _activeTab = 'Ringkasan Gizi';
 
-  // Dummy data untuk riwayat BMI
-  final List<IBMHistory> _bmiHistory = [
-    IBMHistory(
-      date: DateTime(2025, 3, 19, 13, 09),
-      bmi: 19.0,
-      height: 170,
-      weight: 55,
-      category: 'Normal',
-    ),
-    IBMHistory(
-      date: DateTime(2025, 3, 15, 10, 22),
-      bmi: 19.5,
-      height: 170,
-      weight: 56.5,
-      category: 'Normal',
-    ),
-    IBMHistory(
-      date: DateTime(2025, 3, 10, 8, 15),
-      bmi: 20.1,
-      height: 170,
-      weight: 58,
-      category: 'Normal',
-    ),
-    IBMHistory(
-      date: DateTime(2025, 3, 5, 19, 30),
-      bmi: 20.8,
-      height: 170,
-      weight: 60,
-      category: 'Normal',
-    ),
-  ];
+  final BMIService _bmiService = BMIService();
+  List<IBMHistory> _bmiHistory = [];
+  int _currentPage = 0;
+  static const int _pageSize = 10;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _loadBMIHistory();
+  }
+
+  Future<void> _loadBMIHistory({bool refresh = false}) async {
+    if (refresh) {
+      setState(() {
+        _currentPage = 0;
+        _hasMoreData = true;
+        _bmiHistory = [];
+      });
+    }
+
+    if (!_hasMoreData || _isLoadingHistory) return;
+
+    setState(() {
+      _isLoadingHistory = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final response = await _bmiService.getBMIHistory(
+        limit: _pageSize,
+        offset: _currentPage * _pageSize,
+      );
+
+      if (!mounted) return;
+
+      if (response != null && response.success && response.data != null) {
+        final newRecords = response.data!;
+        setState(() {
+          if (refresh) {
+            _bmiHistory = newRecords;
+          } else {
+            _bmiHistory.addAll(newRecords);
+          }
+          _hasMoreData = newRecords.length == _pageSize;
+          _currentPage++;
+        });
+      } else {
+        setState(() {
+          _errorMessage = response?.message ?? 'Gagal memuat riwayat BMI';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Terjadi kesalahan: ${e.toString()}';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingHistory = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _refreshBMIHistory() async {
+    await _loadBMIHistory(refresh: true);
+  }
 
   List<FlSpot> get _bmiSpots {
     return _bmiHistory.asMap().entries.map((entry) {
@@ -70,12 +113,6 @@ class _IBMScreenState extends State<IBMScreen>
   }
 
   @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
   void dispose() {
     _heightController.dispose();
     _weightController.dispose();
@@ -83,7 +120,7 @@ class _IBMScreenState extends State<IBMScreen>
     super.dispose();
   }
 
-  void _calculateBMI() {
+  void _calculateBMI() async {
     final height = double.tryParse(_heightController.text) ?? 0;
     final weight = double.tryParse(_weightController.text) ?? 0;
 
@@ -97,45 +134,72 @@ class _IBMScreenState extends State<IBMScreen>
       return;
     }
 
-    // Calculate BMI: weight / (height in meters)²
-    final heightInMeters = height / 100;
-    final bmi = weight / (heightInMeters * heightInMeters);
-
-    String category;
-    Color color;
-
-    if (bmi < 18.5) {
-      category = 'Kurus';
-      color = Colors.blue;
-    } else if (bmi < 25) {
-      category = 'Normal';
-      color = Colors.green;
-    } else if (bmi < 30) {
-      category = 'Berlebih';
-      color = Colors.orange;
-    } else {
-      category = 'Obesitas';
-      color = Colors.red;
-    }
-
     setState(() {
-      _bmi = bmi;
-      _category = category;
-      _categoryColor = color;
-      _hasCalculated = true;
-
-      // Add to history
-      _bmiHistory.insert(
-        0,
-        IBMHistory(
-          date: DateTime.now(),
-          bmi: bmi,
-          height: height,
-          weight: weight,
-          category: category,
-        ),
-      );
+      _isLoading = true;
+      _errorMessage = null;
     });
+
+    try {
+      final response = await _bmiService.calculateBMI(
+        height: height,
+        weight: weight,
+      );
+
+      if (!mounted) return;
+
+      if (response != null && response.success && response.data != null) {
+        final bmiRecord = response.data!;
+        String category;
+        Color color;
+
+        switch (bmiRecord.status.toUpperCase()) {
+          case 'UNDERWEIGHT':
+            category = 'Kurus';
+            color = Colors.blue;
+            break;
+          case 'NORMAL':
+            category = 'Normal';
+            color = Colors.green;
+            break;
+          case 'OVERWEIGHT':
+            category = 'Berlebih';
+            color = Colors.orange;
+            break;
+          case 'OBESE':
+            category = 'Obesitas';
+            color = Colors.red;
+            break;
+          default:
+            category = 'Tidak diketahui';
+            color = Colors.grey;
+        }
+
+        setState(() {
+          _bmi = bmiRecord.bmi;
+          _category = category;
+          _categoryColor = color;
+          _hasCalculated = true;
+        });
+
+        // Reload BMI history after successful calculation
+        await _loadBMIHistory();
+      } else {
+        setState(() {
+          _errorMessage = response?.message ?? 'Gagal menghitung BMI';
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = 'Terjadi kesalahan: ${e.toString()}';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -507,31 +571,60 @@ class _IBMScreenState extends State<IBMScreen>
             ),
           ),
           const SizedBox(height: 16),
-
-          // Graph/List toggle
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(100),
+          if (_isLoadingHistory)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_errorMessage != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else if (_bmiHistory.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('Belum ada riwayat BMI'),
+              ),
+            )
+          else ...[
+            // Graph/List toggle
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildToggleButton('Grafik', 0),
+                  _buildToggleButton('Daftar', 1),
+                ],
+              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildToggleButton('Grafik', 0),
-                _buildToggleButton('Daftar', 1),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          // Tab content
-          IndexedStack(
-            index: _tabController.index,
-            children: [
-              _buildBMIGraph(),
-              _buildBMIList(),
-            ],
-          ),
+            // Tab content
+            SizedBox(
+              height: 300, // Fixed height for the content
+              child: IndexedStack(
+                index: _tabController.index,
+                children: [
+                  _buildBMIGraph(),
+                  _buildBMIList(),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -565,6 +658,12 @@ class _IBMScreenState extends State<IBMScreen>
   }
 
   Widget _buildBMIGraph() {
+    if (_bmiHistory.isEmpty) {
+      return const Center(
+        child: Text('Tidak ada data untuk ditampilkan'),
+      );
+    }
+
     return SizedBox(
       height: 200,
       child: LineChart(
@@ -600,7 +699,7 @@ class _IBMScreenState extends State<IBMScreen>
                     return const SizedBox.shrink();
                   }
 
-                  final date = _bmiHistory[value.toInt()].date;
+                  final date = _bmiHistory[value.toInt()].recordedAt;
                   return Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
@@ -640,7 +739,7 @@ class _IBMScreenState extends State<IBMScreen>
           ),
           borderData: FlBorderData(show: false),
           minX: 0,
-          maxX: _bmiHistory.length.toDouble() - 1,
+          maxX: (_bmiHistory.length - 1).toDouble(),
           minY: 15,
           maxY: 35,
           lineBarsData: [
@@ -663,8 +762,7 @@ class _IBMScreenState extends State<IBMScreen>
               ),
               belowBarData: BarAreaData(
                 show: true,
-                color: AppColors.primary
-                    .withAlpha(26), // Fixed: withOpacity(0.1) to withAlpha(26)
+                color: AppColors.primary.withAlpha(26),
               ),
             ),
           ],
@@ -674,73 +772,89 @@ class _IBMScreenState extends State<IBMScreen>
   }
 
   Widget _buildBMIList() {
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _bmiHistory.length,
-      separatorBuilder: (context, index) =>
-          Divider(color: Colors.grey.shade200),
-      itemBuilder: (context, index) {
-        final record = _bmiHistory[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            children: [
-              Text(
-                '${record.date.day} ${_getMonthName(record.date.month)} ${record.date.year}, ${record.date.hour.toString().padLeft(2, '0')}:${record.date.minute.toString().padLeft(2, '0')}',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade700,
+    return RefreshIndicator(
+      onRefresh: _refreshBMIHistory,
+      child: ListView.separated(
+        shrinkWrap: true,
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: _bmiHistory.length + (_hasMoreData ? 1 : 0),
+        separatorBuilder: (context, index) =>
+            Divider(color: Colors.grey.shade200),
+        itemBuilder: (context, index) {
+          if (index == _bmiHistory.length) {
+            if (_hasMoreData) {
+              _loadBMIHistory();
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
                 ),
-              ),
-              const Spacer(),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        'BMI: ',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                      Text(
-                        record.bmi.toStringAsFixed(1),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+              );
+            }
+            return const SizedBox.shrink();
+          }
+
+          final record = _bmiHistory[index];
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                Text(
+                  '${record.recordedAt.day} ${_getMonthName(record.recordedAt.month)} ${record.recordedAt.year}, ${record.recordedAt.hour.toString().padLeft(2, '0')}:${record.recordedAt.minute.toString().padLeft(2, '0')}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Colors.grey.shade700,
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        'Tinggi: ${record.height} cm',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
+                ),
+                const Spacer(),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'BMI: ',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Berat: ${record.weight} kg',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
+                        Text(
+                          record.bmi.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          'Tinggi: ${record.height} cm',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Berat: ${record.weight} kg',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 

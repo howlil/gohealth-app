@@ -3,8 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../utils/app_colors.dart';
+import '../utils/env_config.dart';
 import '../widgets/rounded_button.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/auth/auth_error_widget.dart';
+import '../services/login_service.dart';
+import '../widgets/inputs/rounded_input_field.dart';
+import '../widgets/auth/google_sign_in_button.dart';
+import '../widgets/glass_card.dart';
+import '../utils/app_text_styles.dart';
+import '../utils/app_constants.dart';
+import '../utils/app_routes.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,10 +29,19 @@ class _LoginScreenState extends State<LoginScreen>
   late Animation<double> _scaleAnimation;
   late Animation<Offset> _slideAnimation;
 
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isPasswordVisible = false;
+  bool _isLoading = false;
+  String? _errorMessage;
+  late final LoginService _loginService;
+
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
+    _loginService = LoginService(baseUrl: EnvConfig.apiBaseUrl);
 
     // Check if already logged in
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -70,34 +88,48 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _animationController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.signInWithGoogle();
+  Future<void> _handleEmailLogin() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    if (success) {
-      context.go('/home');
-    } else if (authProvider.error != null) {
-      _showErrorSnackBar(authProvider.error!);
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.login(
+        _emailController.text,
+        _passwordController.text,
+      );
+
+      if (mounted) {
+        if (success) {
+          context.go('/home');
+        } else {
+          setState(() {
+            _errorMessage = authProvider.error;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
   }
 
   @override
@@ -199,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen>
           // Logo and title section
           _buildLogoSection(),
 
-          SizedBox(height: MediaQuery.of(context).size.height * 0.1),
+          SizedBox(height: MediaQuery.of(context).size.height * 0.05),
 
           // Login card
           _buildLoginCard(),
@@ -306,88 +338,170 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ],
           ),
-          child: Column(
-            children: [
-              // Welcome text
-              const Text(
-                'Selamat Datang!',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              Text(
-                'Masuk untuk melanjutkan perjalanan kesehatan Anda',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.black.withAlpha(153),
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              // Google sign in button
-              Consumer<AuthProvider>(
-                builder: (context, authProvider, child) {
-                  return RoundedButton(
-                    text: 'Masuk dengan Google',
-                    onPressed:
-                        authProvider.isLoading ? () {} : _handleGoogleSignIn,
-                    color: Colors.white,
-                    textColor: Colors.black87,
-                    icon: Icons.g_mobiledata,
-                    isLoading: authProvider.isLoading,
-                    width: double.infinity,
-                    height: 56,
-                    fontSize: 16,
-                  );
-                },
-              ),
-
-              const SizedBox(height: 24),
-
-              // Divider
-              Row(
-                children: [
-                  Expanded(
-                    child: Divider(color: Colors.black.withAlpha(26)),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              children: [
+                // Welcome text
+                const Text(
+                  'Selamat Datang!',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'atau',
-                      style: TextStyle(
-                        color: Colors.black.withAlpha(102),
-                        fontSize: 14,
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  'Masuk untuk melanjutkan perjalanan kesehatan Anda',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black.withAlpha(153),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Email input
+                RoundedInputField(
+                  controller: _emailController,
+                  hintText: 'Email',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Silakan masukkan email Anda';
+                    }
+                    if (!value.contains('@')) {
+                      return 'Silakan masukkan email yang valid';
+                    }
+                    return null;
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Password input
+                RoundedInputField(
+                  controller: _passwordController,
+                  hintText: 'Password',
+                  icon: Icons.lock_outline,
+                  obscureText: !_isPasswordVisible,
+                  suffixIcon: _isPasswordVisible
+                      ? Icons.visibility_off
+                      : Icons.visibility,
+                  onSuffixIconTap: () {
+                    setState(() {
+                      _isPasswordVisible = !_isPasswordVisible;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Silakan masukkan password Anda';
+                    }
+                    if (value.length < 6) {
+                      return 'Password minimal 6 karakter';
+                    }
+                    return null;
+                  },
+                ),
+
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  AuthErrorWidget(error: _errorMessage!),
+                ],
+
+                const SizedBox(height: 32),
+
+                // Login button
+                Consumer<AuthProvider>(
+                  builder: (context, authProvider, child) {
+                    return RoundedButton(
+                      text: 'Masuk',
+                      onPressed: _isLoading ? null : _handleEmailLogin,
+                      isLoading: _isLoading,
+                      width: double.infinity,
+                      height: 56,
+                      fontSize: 16,
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                // Divider
+                Row(
+                  children: [
+                    Expanded(
+                      child: Divider(color: Colors.black.withAlpha(26)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'atau',
+                        style: TextStyle(
+                          color: Colors.black.withAlpha(102),
+                          fontSize: 14,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: Divider(color: Colors.black.withAlpha(26)),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Continue as guest
-              TextButton(
-                onPressed: () => context.go('/home'),
-                child: const Text(
-                  'Lanjutkan sebagai tamu',
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
+                    Expanded(
+                      child: Divider(color: Colors.black.withAlpha(26)),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+
+                const SizedBox(height: 24),
+
+                // Google sign in button
+                Consumer<AuthProvider>(
+                  builder: (context, authProvider, child) {
+                    return RoundedButton(
+                      text: 'Masuk dengan Google',
+                      onPressed:
+                          authProvider.isLoading ? null : _handleEmailLogin,
+                      color: Colors.white,
+                      textColor: Colors.black87,
+                      icon: const Icon(Icons.g_mobiledata, size: 24),
+                      isLoading: authProvider.isLoading,
+                      width: double.infinity,
+                      height: 56,
+                      fontSize: 16,
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                // Register link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Belum punya akun? ',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.black.withAlpha(153),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => context.go('/register'),
+                      child: const Text(
+                        'Daftar',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

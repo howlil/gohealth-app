@@ -1,32 +1,29 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
-import './endpoints.dart';
+import '../utils/api_endpoints.dart';
 import '../utils/storage_util.dart';
+import '../utils/env_config.dart';
 
 class ApiService {
-  final String baseUrl = ApiEndpoints.baseUrl;
+  static final ApiService _instance = ApiService._internal();
+  final String _baseUrl = EnvConfig.apiBaseUrl;
   final Logger logger = Logger();
-  final StorageUtil _storageUtil = StorageUtil();
+
+  factory ApiService() {
+    return _instance;
+  }
+
+  ApiService._internal();
 
   // Get auth headers with token
-  Future<Map<String, String>> _getHeaders(
-      {bool requiresAuth = true, bool isJson = true}) async {
-    Map<String, String> headers = {};
-
-    if (isJson) {
-      headers["Content-Type"] = "application/json";
-    }
-
-    if (requiresAuth) {
-      String? token = await _storageUtil.getToken();
-      if (token == null) {
-        throw Exception("Authentication required but token not found");
-      }
-      headers["Authorization"] = "Bearer $token";
-    }
-
-    return headers;
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await StorageUtil.getAccessToken();
+    return {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
   }
 
   // Perform GET request
@@ -36,8 +33,8 @@ class ApiService {
     Map<String, String>? queryParams,
   }) async {
     try {
-      final headers = await _getHeaders(requiresAuth: requiresAuth);
-      var uri = Uri.parse('$baseUrl$endpoint');
+      final headers = await _getHeaders();
+      var uri = Uri.parse('$_baseUrl$endpoint');
 
       if (queryParams != null) {
         uri = uri.replace(queryParameters: queryParams);
@@ -63,8 +60,8 @@ class ApiService {
     bool requiresAuth = true,
   }) async {
     try {
-      final headers = await _getHeaders(requiresAuth: requiresAuth);
-      final url = Uri.parse('$baseUrl$endpoint');
+      final headers = await _getHeaders();
+      final url = Uri.parse('$_baseUrl$endpoint');
 
       logger.d("POST Request: $url");
       logger.d("POST Body: $body");
