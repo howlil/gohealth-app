@@ -106,10 +106,18 @@ class _SplashScreenState extends State<SplashScreen>
 
   // Navigation logic based on authentication state
   void _navigateAfterSplash() {
+    if (!mounted) return;
+
     Future.delayed(const Duration(seconds: 1), () {
       if (!mounted) return;
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      // Prevent navigation if already navigating
+      if (Navigator.of(context).userGestureInProgress) {
+        Future.delayed(const Duration(milliseconds: 100), _navigateAfterSplash);
+        return;
+      }
 
       // Check if user is already logged in
       if (authProvider.isLoggedIn) {

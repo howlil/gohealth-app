@@ -10,6 +10,7 @@ import '../utils/env_config.dart';
 import '../utils/api_endpoints.dart';
 import '../utils/api_service.dart';
 import '../utils/api_response.dart';
+import '../utils/storage_util.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -338,6 +339,11 @@ class AuthService {
         if (data['data'] == null) {
           return ApiResponse.error('Invalid response format');
         }
+
+        // Store tokens
+        await StorageUtil.setAccessToken(data['data']['accessToken']);
+        await StorageUtil.setRefreshToken(data['data']['refreshToken']);
+
         return ApiResponse.success(
           AuthModel.fromJson(data['data']),
           message: data['message'] ?? 'Login successful',

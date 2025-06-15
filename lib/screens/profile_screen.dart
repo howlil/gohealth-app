@@ -31,7 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
 
     // Initialize controllers with default values
-    _nameController = TextEditingController(text: 'Loading...');
+    _nameController = TextEditingController(text: '');
     _ageController = TextEditingController(text: '');
     _heightController = TextEditingController(text: '');
     _weightController = TextEditingController(text: '');
@@ -61,7 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final profile = profileProvider.profile;
       if (profile != null) {
         setState(() {
-          _nameController.text = profile.name;
+          _nameController.text = profile.name ?? '';
           _ageController.text = profile.age?.toString() ?? '';
           _heightController.text = profile.height?.toString() ?? '';
           _weightController.text = profile.weight?.toString() ?? '';
@@ -210,6 +210,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       title: 'Profile',
       backgroundColor: const Color(0xFFF8F9FA),
       showBottomNavBar: true,
+      showBackButton: false,
       currentIndex: 2,
       child: Stack(
         children: [

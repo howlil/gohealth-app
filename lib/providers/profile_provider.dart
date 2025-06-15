@@ -79,6 +79,7 @@ class ProfileProvider extends ChangeNotifier {
         name: updatedProfile.name,
         email: updatedProfile.email,
         age: updatedProfile.age,
+        refreshToken: '', // Add required refreshToken parameter
         gender: updatedProfile.gender,
         height: updatedProfile.height,
         weight: updatedProfile.weight,

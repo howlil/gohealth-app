@@ -110,6 +110,7 @@ class LoginResponseData {
       email: email,
       name: name,
       token: accessToken,
+      refreshToken: refreshToken,
       age: age,
       gender: gender,
       height: height,
@@ -131,15 +132,19 @@ class LoginResponseData {
         name: json['name']?.toString() ?? '',
         age: json['age'] as int?,
         gender: json['gender']?.toString(),
-        height: json['height'] != null ? (json['height'] as num).toDouble() : null,
-        weight: json['weight'] != null ? (json['weight'] as num).toDouble() : null,
+        height:
+            json['height'] != null ? (json['height'] as num).toDouble() : null,
+        weight:
+            json['weight'] != null ? (json['weight'] as num).toDouble() : null,
         activityLevel: json['activityLevel']?.toString(),
         profileImage: json['profileImage']?.toString(),
         createdAt: json['createdAt'] != null
-            ? DateTime.tryParse(json['createdAt'].toString()) // Use tryParse instead of parse
+            ? DateTime.tryParse(
+                json['createdAt'].toString()) // Use tryParse instead of parse
             : null,
         updatedAt: json['updatedAt'] != null
-            ? DateTime.tryParse(json['updatedAt'].toString()) // Use tryParse instead of parse
+            ? DateTime.tryParse(
+                json['updatedAt'].toString()) // Use tryParse instead of parse
             : null,
         accessToken: json['accessToken']?.toString() ?? '',
         refreshToken: json['refreshToken']?.toString() ?? '',
@@ -198,6 +203,7 @@ class LoginModel {
   final String name;
   final String email;
   final String token;
+  final String refreshToken;
   final String? profileImage;
   final String? gender;
   final int? age;
@@ -212,6 +218,7 @@ class LoginModel {
     required this.name,
     required this.email,
     required this.token,
+    required this.refreshToken,
     this.profileImage,
     this.gender,
     this.age,
@@ -228,6 +235,7 @@ class LoginModel {
       'name': name,
       'email': email,
       'token': token,
+      'refreshToken': refreshToken,
       'profileImage': profileImage,
       'gender': gender,
       'age': age,
@@ -245,17 +253,20 @@ class LoginModel {
       name: json['name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       token: json['token']?.toString() ?? '',
+      refreshToken: json['refreshToken']?.toString() ?? '',
       profileImage: json['profileImage']?.toString(),
       gender: json['gender']?.toString(),
       age: json['age'] as int?,
-      height: json['height'] != null ? (json['height'] as num).toDouble() : null,
-      weight: json['weight'] != null ? (json['weight'] as num).toDouble() : null,
+      height:
+          json['height'] != null ? (json['height'] as num).toDouble() : null,
+      weight:
+          json['weight'] != null ? (json['weight'] as num).toDouble() : null,
       activityLevel: json['activityLevel']?.toString(),
       createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString()) // Use tryParse
+          ? DateTime.tryParse(json['createdAt'].toString())
           : null,
       updatedAt: json['updatedAt'] != null
-          ? DateTime.tryParse(json['updatedAt'].toString()) // Use tryParse
+          ? DateTime.tryParse(json['updatedAt'].toString())
           : null,
     );
   }
@@ -265,6 +276,7 @@ class LoginModel {
     String? name,
     String? email,
     String? token,
+    String? refreshToken,
     String? profileImage,
     String? gender,
     int? age,
@@ -279,6 +291,7 @@ class LoginModel {
       name: name ?? this.name,
       email: email ?? this.email,
       token: token ?? this.token,
+      refreshToken: refreshToken ?? this.refreshToken,
       profileImage: profileImage ?? this.profileImage,
       gender: gender ?? this.gender,
       age: age ?? this.age,
@@ -296,6 +309,7 @@ class LoginModel {
       email: email,
       name: name,
       token: token,
+      refreshToken: refreshToken,
       age: age,
       gender: gender,
       height: height,

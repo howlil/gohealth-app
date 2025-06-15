@@ -53,10 +53,13 @@ class CustomBottomNavBar extends StatelessWidget {
   }
 
   void _handleTabChange(BuildContext context, int index) {
-    if (currentIndex == index) return; 
+    if (currentIndex == index) return;
 
     final routes = ['/home', '/nutrition', '/profile'];
-    
+
+    // Prevent navigation if already navigating
+    if (Navigator.of(context).userGestureInProgress) return;
+
     // Using context.go instead of context.goNamed for better stability
     if (index >= 0 && index < routes.length) {
       context.go(routes[index]);

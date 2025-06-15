@@ -110,7 +110,14 @@ class _LoginScreenState extends State<LoginScreen>
 
       if (mounted) {
         if (success) {
-          context.go('/home');
+          // Prevent navigation if already navigating
+          if (Navigator.of(context).userGestureInProgress) {
+            Future.delayed(const Duration(milliseconds: 100), () {
+              if (mounted) context.go('/home');
+            });
+          } else {
+            context.go('/home');
+          }
         } else {
           setState(() {
             _errorMessage = authProvider.error;

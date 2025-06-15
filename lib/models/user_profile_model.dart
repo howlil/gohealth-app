@@ -32,7 +32,8 @@ class UserProfileData {
   final double? height;
   final double? weight;
   final String? activityLevel;
-  final String token;
+  final String? token;
+  final String? refreshToken;
 
   UserProfileData({
     required this.id,
@@ -44,7 +45,8 @@ class UserProfileData {
     this.height,
     this.weight,
     this.activityLevel,
-    required this.token,
+    this.token,
+    this.refreshToken,
   });
 
   Map<String, dynamic> toJson() {
@@ -59,23 +61,23 @@ class UserProfileData {
       'weight': weight,
       'activityLevel': activityLevel,
       'token': token,
+      'refreshToken': refreshToken,
     };
   }
 
   factory UserProfileData.fromJson(Map<String, dynamic> json) {
     return UserProfileData(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
-      profileImage: json['profileImage'] as String?,
-      gender: json['gender'] as String?,
-      age: json['age'] as int?,
-      height:
-          json['height'] != null ? (json['height'] as num).toDouble() : null,
-      weight:
-          json['weight'] != null ? (json['weight'] as num).toDouble() : null,
-      activityLevel: json['activityLevel'] as String?,
-      token: json['token'] as String,
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      profileImage: json['profileImage']?.toString(),
+      gender: json['gender']?.toString(),
+      age: (json['age'] as num?)?.toInt(),
+      height: (json['height'] as num?)?.toDouble(),
+      weight: (json['weight'] as num?)?.toDouble(),
+      activityLevel: json['activityLevel']?.toString(),
+      token: json['token']?.toString(),
+      refreshToken: json['refreshToken']?.toString(),
     );
   }
 
@@ -90,6 +92,7 @@ class UserProfileData {
     String? activityLevel,
     String? profileImage,
     String? token,
+    String? refreshToken,
   }) {
     return UserProfileData(
       id: id ?? this.id,
@@ -102,6 +105,7 @@ class UserProfileData {
       activityLevel: activityLevel ?? this.activityLevel,
       profileImage: profileImage ?? this.profileImage,
       token: token ?? this.token,
+      refreshToken: refreshToken ?? this.refreshToken,
     );
   }
 
@@ -111,7 +115,46 @@ class UserProfileData {
       name: name,
       email: email,
       profileImage: profileImage,
-      token: token,
+      token: token ?? '',
+      refreshToken: refreshToken ?? '',
+    );
+  }
+}
+
+class UserProfile {
+  final String id;
+  final String email;
+  final String name;
+  final int age;
+  final String gender;
+  final double height;
+  final double weight;
+  final String? activityLevel;
+  final String? profileImage;
+
+  UserProfile({
+    required this.id,
+    required this.email,
+    required this.name,
+    required this.age,
+    required this.gender,
+    required this.height,
+    required this.weight,
+    this.activityLevel,
+    this.profileImage,
+  });
+
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    return UserProfile(
+      id: json['id']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      age: (json['age'] as num?)?.toInt() ?? 0,
+      gender: json['gender']?.toString() ?? '',
+      height: (json['height'] as num?)?.toDouble() ?? 0.0,
+      weight: (json['weight'] as num?)?.toDouble() ?? 0.0,
+      activityLevel: json['activityLevel']?.toString(),
+      profileImage: json['profileImage']?.toString(),
     );
   }
 }

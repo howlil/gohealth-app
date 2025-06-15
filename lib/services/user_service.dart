@@ -5,10 +5,14 @@ import '../models/user_profile_model.dart';
 import '../utils/env_config.dart';
 import '../utils/api_endpoints.dart';
 import '../utils/api_response.dart';
+import '../utils/storage_util.dart';
+import '../utils/api_service.dart';
+import 'package:flutter/material.dart';
 
 class UserService {
   static final UserService _instance = UserService._internal();
   final String _baseUrl = EnvConfig.apiBaseUrl;
+  final ApiService _apiService = ApiService();
 
   factory UserService() {
     return _instance;
@@ -18,22 +22,20 @@ class UserService {
 
   Future<ApiResponse<UserProfileData>> getCurrentUser() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl${ApiEndpoints.me}'),
-        headers: await _getHeaders(),
+      final response = await _apiService.get(
+        ApiEndpoints.me,
+        requiresAuth: true,
       );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      if (response['success'] == true) {
         return ApiResponse.success(
-          UserProfileData.fromJson(data['data']),
-          message: data['message'] ?? 'Success',
+          UserProfileData.fromJson(response['data']),
+          message: response['message'] ?? 'Success',
         );
       } else {
-        final error = json.decode(response.body);
         return ApiResponse.error(
-          error['message'] ?? 'Failed to get user profile',
-          statusCode: response.statusCode,
+          response['message'] ?? 'Failed to get user profile',
+          statusCode: response['statusCode'],
         );
       }
     } catch (e) {
@@ -44,23 +46,21 @@ class UserService {
   Future<ApiResponse<UserProfileData>> updateProfile(
       UserProfileData profile) async {
     try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl${ApiEndpoints.updateProfile}'),
-        headers: await _getHeaders(),
-        body: json.encode(profile.toJson()),
+      final response = await _apiService.post(
+        ApiEndpoints.updateProfile,
+        body: profile.toJson(),
+        requiresAuth: true,
       );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      if (response['success'] == true) {
         return ApiResponse.success(
-          UserProfileData.fromJson(data['data']),
-          message: data['message'] ?? 'Profile updated successfully',
+          UserProfileData.fromJson(response['data']),
+          message: response['message'] ?? 'Profile updated successfully',
         );
       } else {
-        final error = json.decode(response.body);
         return ApiResponse.error(
-          error['message'] ?? 'Failed to update profile',
-          statusCode: response.statusCode,
+          response['message'] ?? 'Failed to update profile',
+          statusCode: response['statusCode'],
         );
       }
     } catch (e) {
@@ -70,12 +70,13 @@ class UserService {
 
   Future<ApiResponse<String>> uploadProfileImage(File image) async {
     try {
+      final headers = await _apiService.getHeaders();
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('$_baseUrl${ApiEndpoints.uploadProfileImage}'),
       );
 
-      request.headers.addAll(await _getHeaders());
+      request.headers.addAll(headers);
       request.files.add(
         await http.MultipartFile.fromPath('image', image.path),
       );
@@ -103,45 +104,24 @@ class UserService {
 
   Future<ApiResponse<Map<String, dynamic>>> getDashboardData() async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl${ApiEndpoints.dashboard}'),
-        headers: await _getHeaders(),
+      final response = await _apiService.get(
+        ApiEndpoints.dashboard,
+        requiresAuth: true,
       );
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      if (response['success'] == true) {
         return ApiResponse.success(
-          data['data'],
-          message: data['message'] ?? 'Success',
+          response['data'],
+          message: response['message'] ?? 'Success',
         );
       } else {
-        final error = json.decode(response.body);
         return ApiResponse.error(
-          error['message'] ?? 'Failed to get dashboard data',
-          statusCode: response.statusCode,
+          response['message'] ?? 'Failed to get dashboard data',
+          statusCode: response['statusCode'],
         );
       }
     } catch (e) {
       return ApiResponse.error(e.toString());
     }
-  }
-
-  Future<Map<String, String>> _getHeaders() async {
-    final headers = {
-      'Content-Type': 'application/json',
-    };
-
-    // Add authorization header if token exists
-    final token = await _getToken();
-    if (token != null) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-
-    return headers;
-  }
-
-  Future<String?> _getToken() async {
-    // Implement token retrieval logic here
-    return null;
   }
 }

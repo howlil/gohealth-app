@@ -6,6 +6,7 @@ import 'package:gohealth/models/auth_model.dart' hide AuthState, AuthResponse;
 import '../models/login_model.dart';
 import '../utils/api_response.dart';
 import '../utils/http_exception.dart';
+import '../utils/storage_util.dart';
 
 class SupabaseAuthService {
   static final SupabaseAuthService _instance = SupabaseAuthService._internal();
@@ -105,13 +106,15 @@ class SupabaseAuthService {
   /// Convert Supabase User to AuthModel
   AuthModel? getAuthModel() {
     final user = getCurrentUser();
-    if (user == null) return null;
+    final session = _supabase.auth.currentSession;
+    if (user == null || session == null) return null;
 
     return AuthModel(
       id: user.id,
       email: user.email ?? '',
       name: user.userMetadata?['full_name'] ?? user.userMetadata?['name'] ?? '',
-      token: user.appMetadata?['access_token'] ?? '',
+      token: session.accessToken,
+      refreshToken: session.refreshToken ?? '',
     );
   }
 
@@ -216,11 +219,17 @@ class SupabaseAuthService {
         password: password,
       );
 
-      if (response.user != null) {
+      if (response.user != null && response.session != null) {
         final user = response.user!;
+        final session = response.session!;
         final name = user.userMetadata?['name'] as String? ?? '';
         final email = user.email ?? '';
-        final token = response.session?.accessToken ?? '';
+        final token = session.accessToken;
+        final refreshToken = session.refreshToken ?? '';
+
+        // Store tokens
+        await StorageUtil.setAccessToken(token);
+        await StorageUtil.setRefreshToken(refreshToken);
 
         return ApiResponse.success(
           LoginModel(
@@ -228,6 +237,7 @@ class SupabaseAuthService {
             name: name,
             email: email,
             token: token,
+            refreshToken: refreshToken,
           ),
           message: 'Login successful',
         );
@@ -252,14 +262,16 @@ class SupabaseAuthService {
         data: {'name': name},
       );
 
-      if (response.user != null) {
+      if (response.user != null && response.session != null) {
         final user = response.user!;
+        final session = response.session!;
         return ApiResponse.success(
           LoginModel(
             id: user.id,
             name: name,
             email: email,
-            token: response.session?.accessToken ?? '',
+            token: session.accessToken,
+            refreshToken: session.refreshToken ?? '',
           ),
           message: 'Registration successful',
         );
@@ -283,7 +295,7 @@ class SupabaseAuthService {
         data: {'name': name},
       );
 
-      if (response.user == null) {
+      if (response.user == null || response.session == null) {
         throw HttpException('Failed to create user');
       }
 
@@ -291,7 +303,8 @@ class SupabaseAuthService {
         id: response.user!.id,
         name: name,
         email: email,
-        token: response.session?.accessToken ?? '',
+        token: response.session!.accessToken,
+        refreshToken: response.session!.refreshToken ?? '',
       );
     } catch (e) {
       throw HttpException(e.toString());
@@ -308,7 +321,7 @@ class SupabaseAuthService {
         password: password,
       );
 
-      if (response.user == null) {
+      if (response.user == null || response.session == null) {
         throw HttpException('Failed to sign in');
       }
 
@@ -316,7 +329,8 @@ class SupabaseAuthService {
         id: response.user!.id,
         name: response.user!.userMetadata?['name'] as String? ?? '',
         email: email,
-        token: response.session?.accessToken ?? '',
+        token: response.session!.accessToken,
+        refreshToken: response.session!.refreshToken ?? '',
       );
     } catch (e) {
       throw HttpException(e.toString());

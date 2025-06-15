@@ -12,56 +12,35 @@ import '../utils/api_service.dart';
 import '../utils/http_exception.dart';
 
 class MealService {
-  final String baseUrl;
-  final http.Client _client;
+  static final MealService _instance = MealService._internal();
+  final ApiService _apiService = ApiService();
 
-  MealService({required this.baseUrl}) : _client = http.Client();
-
-  // Get authentication headers
-  Future<Map<String, String>> _getHeaders() async {
-    final token = await StorageUtil.getAccessToken();
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${token ?? ''}',
-    };
-  }
+  factory MealService() => _instance;
+  MealService._internal();
 
   // Get user meals for a specific date
   Future<ApiResponse<List<Food>>?> getMeals({String? date}) async {
     try {
-      final headers = await _getHeaders();
-      String url =
-          '$baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.nutrition}/meals';
-      if (date != null) {
-        url += '?date=$date';
-      }
+      final response = await _apiService.get(
+        '${ApiEndpoints.nutrition}/meals${date != null ? '?date=$date' : ''}',
+        requiresAuth: true,
+      );
 
-      final response = await _client
-          .get(
-            Uri.parse(url),
-            headers: headers,
-          )
-          .timeout(AppConstants.requestTimeout);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> mealsList = data['data'] as List;
-        final List<Food> meals =
-            mealsList.map((item) => Food.fromJson(item)).toList();
+      if (response['success'] == true) {
+        final List<dynamic> data = response['data'];
+        final List<Food> meals = data
+            .map((item) => Food.fromJson(item as Map<String, dynamic>))
+            .toList();
 
         return ApiResponse<List<Food>>(
           success: true,
-          message: data['message'] ?? 'Meals retrieved successfully',
+          message: response['message'] ?? 'Meals retrieved successfully',
           data: meals,
         );
-      } else if (response.statusCode == 401) {
-        debugPrint('Token expired, need to refresh');
-        return null;
       } else {
-        final errorData = json.decode(response.body);
         return ApiResponse<List<Food>>(
           success: false,
-          message: errorData['message'] ?? 'Failed to get meals',
+          message: response['message'] ?? 'Failed to get meals',
           data: null,
         );
       }
@@ -83,39 +62,28 @@ class MealService {
     String? date,
   }) async {
     try {
-      final headers = await _getHeaders();
-      final body = json.encode({
-        'foodId': foodId,
-        'mealType': mealType,
-        'quantity': quantity,
-        'date': date ?? DateTime.now().toIso8601String().split('T')[0],
-      });
+      final response = await _apiService.post(
+        '${ApiEndpoints.nutrition}/meals',
+        body: {
+          'foodId': foodId,
+          'mealType': mealType,
+          'quantity': quantity,
+          'date': date ?? DateTime.now().toIso8601String().split('T')[0],
+        },
+        requiresAuth: true,
+      );
 
-      final response = await _client
-          .post(
-            Uri.parse(
-                '$baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.nutrition}/meals'),
-            headers: headers,
-            body: body,
-          )
-          .timeout(AppConstants.requestTimeout);
-
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
-        final meal = Food.fromJson(data['data']);
+      if (response['success'] == true) {
+        final meal = Food.fromJson(response['data']);
         return ApiResponse<Food>(
           success: true,
-          message: data['message'] ?? 'Meal added successfully',
+          message: response['message'] ?? 'Meal added successfully',
           data: meal,
         );
-      } else if (response.statusCode == 401) {
-        debugPrint('Token expired, need to refresh');
-        return null;
       } else {
-        final errorData = json.decode(response.body);
         return ApiResponse<Food>(
           success: false,
-          message: errorData['message'] ?? 'Failed to add meal',
+          message: response['message'] ?? 'Failed to add meal',
           data: null,
         );
       }
@@ -132,31 +100,21 @@ class MealService {
   // Delete meal
   Future<ApiResponse<String>?> deleteMeal(String mealId) async {
     try {
-      final headers = await _getHeaders();
+      final response = await _apiService.get(
+        '${ApiEndpoints.nutrition}/meals/$mealId',
+        requiresAuth: true,
+      );
 
-      final response = await _client
-          .delete(
-            Uri.parse(
-                '$baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.nutrition}/meals/$mealId'),
-            headers: headers,
-          )
-          .timeout(AppConstants.requestTimeout);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      if (response['success'] == true) {
         return ApiResponse<String>(
           success: true,
-          message: data['message'] ?? 'Meal deleted successfully',
+          message: response['message'] ?? 'Meal deleted successfully',
           data: 'Deleted',
         );
-      } else if (response.statusCode == 401) {
-        debugPrint('Token expired, need to refresh');
-        return null;
       } else {
-        final errorData = json.decode(response.body);
         return ApiResponse<String>(
           success: false,
-          message: errorData['message'] ?? 'Failed to delete meal',
+          message: response['message'] ?? 'Failed to delete meal',
           data: null,
         );
       }

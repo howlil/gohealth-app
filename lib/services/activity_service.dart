@@ -6,6 +6,7 @@ import '../utils/env_config.dart';
 import '../utils/api_endpoints.dart';
 import '../utils/app_constants.dart';
 import '../utils/storage_util.dart';
+import '../utils/api_service.dart';
 
 class Activity {
   final String? id;
@@ -54,53 +55,34 @@ class Activity {
 
 class ActivityService {
   static final ActivityService _instance = ActivityService._internal();
+  final ApiService _apiService = ApiService();
+
   factory ActivityService() => _instance;
   ActivityService._internal();
-
-  // Get authentication headers
-  Future<Map<String, String>> _getHeaders() async {
-    final token = await StorageUtil.getAccessToken();
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${token ?? ''}',
-    };
-  }
 
   // Get user activities for a specific date
   Future<ApiResponse<List<Activity>>?> getActivities({String? date}) async {
     try {
-      final headers = await _getHeaders();
-      String url = '${EnvConfig.apiBaseUrl}${ApiEndpoints.activities}';
-      if (date != null) {
-        url += '?date=$date';
-      }
+      final response = await _apiService.get(
+        '${ApiEndpoints.activities}${date != null ? '?date=$date' : ''}',
+        requiresAuth: true,
+      );
 
-      final response = await http
-          .get(
-            Uri.parse(url),
-            headers: headers,
-          )
-          .timeout(AppConstants.requestTimeout);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> activitiesList = data['data'] as List;
-        final List<Activity> activities =
-            activitiesList.map((item) => Activity.fromJson(item)).toList();
+      if (response['success'] == true) {
+        final List<dynamic> data = response['data'];
+        final List<Activity> activities = data
+            .map((item) => Activity.fromJson(item as Map<String, dynamic>))
+            .toList();
 
         return ApiResponse<List<Activity>>(
           success: true,
-          message: data['message'] ?? 'Activities retrieved successfully',
+          message: response['message'] ?? 'Activities retrieved successfully',
           data: activities,
         );
-      } else if (response.statusCode == 401) {
-        debugPrint('Token expired, need to refresh');
-        return null;
       } else {
-        final errorData = json.decode(response.body);
         return ApiResponse<List<Activity>>(
           success: false,
-          message: errorData['message'] ?? 'Failed to get activities',
+          message: response['message'] ?? 'Failed to get activities',
           data: null,
         );
       }
@@ -123,39 +105,29 @@ class ActivityService {
     String? date,
   }) async {
     try {
-      final headers = await _getHeaders();
-      final body = json.encode({
-        'name': name,
-        'type': type,
-        'duration': duration,
-        'caloriesBurned': caloriesBurned,
-        'date': date ?? DateTime.now().toIso8601String().split('T')[0],
-      });
+      final response = await _apiService.post(
+        ApiEndpoints.activities,
+        body: {
+          'name': name,
+          'type': type,
+          'duration': duration,
+          'caloriesBurned': caloriesBurned,
+          'date': date ?? DateTime.now().toIso8601String().split('T')[0],
+        },
+        requiresAuth: true,
+      );
 
-      final response = await http
-          .post(
-            Uri.parse('${EnvConfig.apiBaseUrl}${ApiEndpoints.activities}'),
-            headers: headers,
-            body: body,
-          )
-          .timeout(AppConstants.requestTimeout);
-
-      if (response.statusCode == 201) {
-        final data = json.decode(response.body);
-        final activity = Activity.fromJson(data['data']);
+      if (response['success'] == true) {
+        final activity = Activity.fromJson(response['data']);
         return ApiResponse<Activity>(
           success: true,
-          message: data['message'] ?? 'Activity added successfully',
+          message: response['message'] ?? 'Activity added successfully',
           data: activity,
         );
-      } else if (response.statusCode == 401) {
-        debugPrint('Token expired, need to refresh');
-        return null;
       } else {
-        final errorData = json.decode(response.body);
         return ApiResponse<Activity>(
           success: false,
-          message: errorData['message'] ?? 'Failed to add activity',
+          message: response['message'] ?? 'Failed to add activity',
           data: null,
         );
       }
@@ -172,31 +144,21 @@ class ActivityService {
   // Delete activity
   Future<ApiResponse<String>?> deleteActivity(String activityId) async {
     try {
-      final headers = await _getHeaders();
+      final response = await _apiService.get(
+        '${ApiEndpoints.activities}/$activityId',
+        requiresAuth: true,
+      );
 
-      final response = await http
-          .delete(
-            Uri.parse(
-                '${EnvConfig.apiBaseUrl}${ApiEndpoints.activities}/$activityId'),
-            headers: headers,
-          )
-          .timeout(AppConstants.requestTimeout);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      if (response['success'] == true) {
         return ApiResponse<String>(
           success: true,
-          message: data['message'] ?? 'Activity deleted successfully',
+          message: response['message'] ?? 'Activity deleted successfully',
           data: 'Deleted',
         );
-      } else if (response.statusCode == 401) {
-        debugPrint('Token expired, need to refresh');
-        return null;
       } else {
-        final errorData = json.decode(response.body);
         return ApiResponse<String>(
           success: false,
-          message: errorData['message'] ?? 'Failed to delete activity',
+          message: response['message'] ?? 'Failed to delete activity',
           data: null,
         );
       }

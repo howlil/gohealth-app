@@ -3,6 +3,7 @@ class AuthModel {
   final String name;
   final String email;
   final String token;
+  final String refreshToken;
   final String? profileImage;
   final String? gender;
   final int? age;
@@ -17,6 +18,7 @@ class AuthModel {
     required this.name,
     required this.email,
     required this.token,
+    required this.refreshToken,
     this.profileImage,
     this.gender,
     this.age,
@@ -33,6 +35,7 @@ class AuthModel {
       'name': name,
       'email': email,
       'token': token,
+      'refreshToken': refreshToken,
       'profileImage': profileImage,
       'gender': gender,
       'age': age,
@@ -50,16 +53,19 @@ class AuthModel {
       name: json['name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       token: json['token']?.toString() ?? '',
+      refreshToken: json['refreshToken']?.toString() ?? '',
       profileImage: json['profileImage']?.toString(),
       gender: json['gender']?.toString(),
       age: json['age'] as int?,
-      height: json['height'] != null ? (json['height'] as num).toDouble() : null,
-      weight: json['weight'] != null ? (json['weight'] as num).toDouble() : null,
+      height:
+          json['height'] != null ? (json['height'] as num).toDouble() : null,
+      weight:
+          json['weight'] != null ? (json['weight'] as num).toDouble() : null,
       activityLevel: json['activityLevel']?.toString(),
-      createdAt: json['createdAt'] != null 
+      createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
-      updatedAt: json['updatedAt'] != null 
+      updatedAt: json['updatedAt'] != null
           ? DateTime.tryParse(json['updatedAt'].toString())
           : null,
     );
@@ -70,6 +76,7 @@ class AuthModel {
     String? name,
     String? email,
     String? token,
+    String? refreshToken,
     String? profileImage,
     String? gender,
     int? age,
@@ -84,6 +91,7 @@ class AuthModel {
       name: name ?? this.name,
       email: email ?? this.email,
       token: token ?? this.token,
+      refreshToken: refreshToken ?? this.refreshToken,
       profileImage: profileImage ?? this.profileImage,
       gender: gender ?? this.gender,
       age: age ?? this.age,
@@ -97,7 +105,7 @@ class AuthModel {
 
   @override
   String toString() {
-    return 'AuthModel(id: $id, name: $name, email: $email, token: $token, profileImage: $profileImage, gender: $gender, age: $age, height: $height, weight: $weight, activityLevel: $activityLevel, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'AuthModel(id: $id, name: $name, email: $email, token: $token, refreshToken: $refreshToken, profileImage: $profileImage, gender: $gender, age: $age, height: $height, weight: $weight, activityLevel: $activityLevel, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 }
 

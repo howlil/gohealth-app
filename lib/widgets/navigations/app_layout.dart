@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'custom_bottom_nav_bar.dart';
 
 class AppLayout extends StatelessWidget {
@@ -49,7 +50,17 @@ class AppLayout extends StatelessWidget {
         leading: showBackButton
             ? IconButton(
                 icon: const Icon(Icons.arrow_back_ios, color: Colors.black87),
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  // Prevent navigation if already navigating
+                  if (Navigator.of(context).userGestureInProgress) return;
+
+                  // Use GoRouter for navigation
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/home');
+                  }
+                },
               )
             : null,
         actions: actions,
