@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../widgets/navigations/app_layout.dart';
 import '../utils/app_colors.dart';
+import '../utils/image_url_helper.dart';
 import '../widgets/inputs/rounded_input_field.dart';
 import '../widgets/rounded_button.dart';
 import '../providers/auth_provider.dart';
@@ -23,8 +25,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late TextEditingController _ageController;
   late TextEditingController _heightController;
   late TextEditingController _weightController;
-  String _gender = 'Pria';
+  String _gender = 'MALE';
+  String _activityLevel = 'MODERATELY_ACTIVE';
   bool _isLoading = false;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -61,11 +65,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final profile = profileProvider.profile;
       if (profile != null) {
         setState(() {
-          _nameController.text = profile.name ?? '';
-          _ageController.text = profile.age?.toString() ?? '';
-          _heightController.text = profile.height?.toString() ?? '';
-          _weightController.text = profile.weight?.toString() ?? '';
-          _gender = profile.gender == 'MALE' ? 'Pria' : 'Wanita';
+          _nameController.text = profile.name;
+          _ageController.text = profile.age.toString();
+          _heightController.text = profile.height.toString();
+          _weightController.text = profile.weight.toString();
+          _gender = profile.gender;
+          _activityLevel = profile.activityLevel;
         });
       }
     } catch (e) {
@@ -147,13 +152,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         throw Exception('Profile not loaded');
       }
 
+      // Validate input
+      final age = int.tryParse(_ageController.text);
+      final height = double.tryParse(_heightController.text);
+      final weight = double.tryParse(_weightController.text);
+
+      if (age == null || height == null || weight == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Mohon isi semua data dengan benar'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       // Update profile with form values
       final updatedProfile = profile.copyWith(
         name: _nameController.text,
-        age: int.tryParse(_ageController.text),
-        gender: _gender == 'Pria' ? 'MALE' : 'FEMALE',
-        height: double.tryParse(_heightController.text),
-        weight: double.tryParse(_weightController.text),
+        age: age,
+        gender: _gender,
+        height: height,
+        weight: weight,
+        activityLevel: _activityLevel,
       );
 
       // Save profile
@@ -204,6 +225,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _pickAndUploadImage() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery, 
+        imageQuality: 80,
+      );
+      
+      if (image == null) return;
+      
+      final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+      final success = await profileProvider.updateProfilePhoto(image);
+      
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Foto profil berhasil diperbarui'),
+              backgroundColor: AppColors.primary,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal memperbarui foto profil: ${profileProvider.error}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error picking/uploading image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppLayout(
@@ -223,7 +286,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withValues(alpha: 0.2),
+                color: AppColors.primary.withOpacity(0.2),
               ),
             ),
           ),
@@ -235,7 +298,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary.withValues(alpha: 0.15),
+                color: AppColors.secondary.withOpacity(0.15),
               ),
             ),
           ),
@@ -271,6 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   TextInputType.number),
                               _buildFormField('Berat (kg)', _weightController,
                                   TextInputType.number),
+                              _buildActivityLevelSelector(),
                               const SizedBox(height: 12),
                               Consumer<ProfileProvider>(
                                 builder: (context, provider, child) {
@@ -326,8 +390,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             }
 
                             return GlassContainer(
-                              color: Colors.red.withValues(alpha: 0.05),
-                              borderColor: Colors.red.withValues(alpha: 0.2),
+                              color: Colors.red.withOpacity(0.05),
+                              borderColor: Colors.red.withOpacity(0.2),
                               child: InkWell(
                                 onTap: authProvider.isLoading
                                     ? null
@@ -395,12 +459,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             const SizedBox(height: 12),
             ProfileAvatar(
-              imageUrl: profile?.photoUrl != null
-                  ? NetworkImage(profile!.photoUrl!)
-                  : null,
+              imagePath: profile?.photoUrl,
               size: 80,
               onTap: () {
-                // Handle tap on profile pic
+                _pickAndUploadImage();
               },
             ),
             const SizedBox(height: 8),
@@ -418,6 +480,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: Colors.grey.shade600,
               ),
             ),
+            if (profile?.bmr != null && profile?.tdee != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    _buildMetricChip(
+                      'BMR: ${profile?.bmr?.toStringAsFixed(0) ?? "0"} kcal',
+                      Icons.local_fire_department_outlined,
+                      AppColors.primary.withOpacity(0.8),
+                    ),
+                    _buildMetricChip(
+                      'TDEE: ${profile?.tdee?.toStringAsFixed(0) ?? "0"} kcal',
+                      Icons.fitness_center_outlined,
+                      AppColors.secondary.withOpacity(0.8),
+                    ),
+                  ],
+                ),
+              ),
             Consumer<AuthProvider>(
               builder: (context, authProvider, child) {
                 if (!authProvider.isLoggedIn) {
@@ -426,10 +507,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.1),
+                      color: AppColors.warning.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: AppColors.warning.withValues(alpha: 0.3),
+                        color: AppColors.warning.withOpacity(0.3),
                       ),
                     ),
                     child: Text(
@@ -448,6 +529,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildMetricChip(String label, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -506,8 +617,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             border: Border.all(color: Colors.grey.shade200),
             boxShadow: [
               BoxShadow(
-                color: const Color.fromARGB(255, 134, 134, 134)
-                    .withValues(alpha: 0.03),
+                color: Colors.grey.shade300.withOpacity(0.03),
                 blurRadius: 25,
                 offset: const Offset(0, 4),
               ),
@@ -518,19 +628,110 @@ class _ProfileScreenState extends State<ProfileScreen> {
               value: _gender,
               isExpanded: true,
               icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
-              items: ['Pria', 'Wanita'].map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(
-                    value,
-                    style: const TextStyle(fontSize: 14),
+              items: [
+                DropdownMenuItem(
+                  value: 'MALE',
+                  child: const Text(
+                    'Pria',
+                    style: TextStyle(fontSize: 14),
                   ),
-                );
-              }).toList(),
+                ),
+                DropdownMenuItem(
+                  value: 'FEMALE',
+                  child: const Text(
+                    'Wanita',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
               onChanged: (String? newValue) {
                 if (newValue != null) {
                   setState(() {
                     _gender = newValue;
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildActivityLevelSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tingkat Aktivitas',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.shade300.withOpacity(0.03),
+                blurRadius: 25,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _activityLevel,
+              isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+              items: [
+                DropdownMenuItem(
+                  value: 'SEDENTARY',
+                  child: const Text(
+                    'Tidak Aktif',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'LIGHTLY',
+                  child: const Text(
+                    'Sedikit Aktif',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'MODERATELY_ACTIVE',
+                  child: const Text(
+                    'Cukup Aktif',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'VERY_ACTIVE',
+                  child: const Text(
+                    'Sangat Aktif',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'EXTRA_ACTIVE',
+                  child: const Text(
+                    'Ekstra Aktif',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _activityLevel = newValue;
                   });
                 }
               },

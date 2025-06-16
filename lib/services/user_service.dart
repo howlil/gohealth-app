@@ -20,107 +20,165 @@ class UserService {
 
   UserService._internal();
 
-  Future<ApiResponse<UserProfileData>> getCurrentUser() async {
+  Future<UserProfileResponse?> getCurrentUser() async {
     try {
       final response = await _apiService.get(
-        ApiEndpoints.me,
+        ApiEndpoints.users + '/profile',
         requiresAuth: true,
       );
 
       if (response['success'] == true) {
-        return ApiResponse.success(
-          UserProfileData.fromJson(response['data']),
+        return UserProfileResponse(
+          success: true,
           message: response['message'] ?? 'Success',
+          data: UserProfileData.fromJson(response['data']),
         );
       } else {
-        return ApiResponse.error(
-          response['message'] ?? 'Failed to get user profile',
-          statusCode: response['statusCode'],
+        return UserProfileResponse(
+          success: false,
+          message: response['message'] ?? 'Failed to get user profile',
+          data: UserProfileData(
+            id: '',
+            name: '',
+            email: '',
+          ),
         );
       }
     } catch (e) {
-      return ApiResponse.error(e.toString());
+      debugPrint('Error getting current user: $e');
+      return UserProfileResponse(
+        success: false,
+        message: e.toString(),
+        data: UserProfileData(
+          id: '',
+          name: '',
+          email: '',
+        ),
+      );
     }
   }
 
-  Future<ApiResponse<UserProfileData>> updateProfile(
-      UserProfileData profile) async {
+  Future<UserProfileResponse?> updateProfile(UserProfileData profile) async {
     try {
-      final response = await _apiService.post(
-        ApiEndpoints.updateProfile,
-        body: profile.toJson(),
+      // Convert model to API request format
+      final Map<String, dynamic> requestBody = {
+        'name': profile.name,
+        'age': profile.age,
+        'gender': profile.gender,
+        'height': profile.height,
+        'weight': profile.weight,
+        'activityLevel': profile.activityLevel,
+      };
+
+      final response = await _apiService.put(
+        ApiEndpoints.users + '/profile',
+        body: requestBody,
         requiresAuth: true,
       );
 
       if (response['success'] == true) {
-        return ApiResponse.success(
-          UserProfileData.fromJson(response['data']),
+        return UserProfileResponse(
+          success: true,
           message: response['message'] ?? 'Profile updated successfully',
+          data: UserProfileData.fromJson(response['data']),
         );
       } else {
-        return ApiResponse.error(
-          response['message'] ?? 'Failed to update profile',
-          statusCode: response['statusCode'],
+        return UserProfileResponse(
+          success: false,
+          message: response['message'] ?? 'Failed to update profile',
+          data: profile,
         );
       }
     } catch (e) {
-      return ApiResponse.error(e.toString());
+      debugPrint('Error updating profile: $e');
+      return UserProfileResponse(
+        success: false,
+        message: e.toString(),
+        data: profile,
+      );
     }
   }
 
-  Future<ApiResponse<String>> uploadProfileImage(File image) async {
+  Future<ApiResponse<String>?> uploadProfileImage(File image) async {
     try {
-      final headers = await _apiService.getHeaders();
+      final token = await StorageUtil.getAccessToken();
+      
+      if (token == null) {
+        return ApiResponse.error('Authentication token not found');
+      }
+      
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('$_baseUrl${ApiEndpoints.uploadProfileImage}'),
+        Uri.parse('$_baseUrl${ApiEndpoints.users}/profile/image'),
       );
 
-      request.headers.addAll(headers);
+      // Add authorization header
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+      });
+      
+      // Add file to the request
       request.files.add(
         await http.MultipartFile.fromPath('image', image.path),
       );
 
+      // Send the request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+      // Parse response
+      final responseData = json.decode(response.body);
+      
+      if (responseData['success'] == true) {
+        // Get the image URL from response
+        final imageUrl = responseData['data']['profileImage'];
+        
         return ApiResponse.success(
-          data['data']['imageUrl'],
-          message: data['message'] ?? 'Image uploaded successfully',
+          imageUrl,
+          message: responseData['message'] ?? 'Image uploaded successfully',
         );
       } else {
-        final error = json.decode(response.body);
         return ApiResponse.error(
-          error['message'] ?? 'Failed to upload image',
-          statusCode: response.statusCode,
+          responseData['message'] ?? 'Failed to upload image',
         );
       }
     } catch (e) {
+      debugPrint('Error uploading profile image: $e');
       return ApiResponse.error(e.toString());
     }
   }
 
-  Future<ApiResponse<Map<String, dynamic>>> getDashboardData() async {
+  Future<ApiResponse<Map<String, dynamic>>?> getDashboardData({
+    String? date,
+    String range = 'week',
+    String? month,
+  }) async {
     try {
+      // Build query parameters
+      final Map<String, String> queryParams = {
+        if (date != null) 'date': date,
+        'range': range,
+        if (month != null) 'month': month,
+      };
+
       final response = await _apiService.get(
         ApiEndpoints.dashboard,
         requiresAuth: true,
+        queryParams: queryParams,
       );
 
       if (response['success'] == true) {
         return ApiResponse.success(
           response['data'],
-          message: response['message'] ?? 'Success',
+          message: response['message'] ?? 'Dashboard data retrieved successfully',
         );
       } else {
         return ApiResponse.error(
           response['message'] ?? 'Failed to get dashboard data',
-          statusCode: response['statusCode'],
         );
       }
     } catch (e) {
+      debugPrint('Error getting dashboard data: $e');
       return ApiResponse.error(e.toString());
     }
   }

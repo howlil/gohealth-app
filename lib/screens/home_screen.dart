@@ -44,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return AppLayout(
       title: 'GoHealth',
       backgroundColor: const Color(0xFFF8F9FA),
+      showBackButton: false,
       currentIndex: 0,
       child: Stack(
         children: [

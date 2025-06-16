@@ -19,8 +19,8 @@ class DashboardProvider extends ChangeNotifier {
     _setLoading(true);
     try {
       final response = await _userService.getDashboardData();
-      if (response.success && response.data != null) {
-        final data = response.data;
+      if (response?.success == true && response?.data != null) {
+        final data = response!.data;
         if (data != null) {
           _dashboardData = DashboardData.fromJson(data);
           _error = null;
@@ -28,7 +28,7 @@ class DashboardProvider extends ChangeNotifier {
           _error = 'Invalid dashboard data received';
         }
       } else {
-        _error = response.message ?? 'Failed to load dashboard data';
+        _error = response?.message ?? 'Failed to load dashboard data';
       }
     } catch (e) {
       _error = e.toString();
@@ -44,8 +44,6 @@ class DashboardProvider extends ChangeNotifier {
 
   // Load dashboard data for specific date
   Future<void> loadDashboardDataForDate(DateTime date) async {
-    final dateString =
-        date.toIso8601String().split('T')[0]; // Format: YYYY-MM-DD
     await loadDashboardData();
   }
 

@@ -1,6 +1,7 @@
 class ApiEndpoints {
   static const String baseUrl = '/api';
   static const String auth = '/auth';
+  static const String users = '/api/users';
   static const String bmi = '/api/bmi';
   static const String profile = '/profile';
   static const String dashboard = '/api/users/dashboard';
@@ -13,12 +14,12 @@ class ApiEndpoints {
   static const String goal = '/goal';
   static const String notification = '/notification';
   static const String setting = '/setting';
-
+  
   // User endpoints
   static const String me = '$baseUrl$auth/me';
-  static const String updateProfile = '$baseUrl$profile/update';
-  static const String uploadProfileImage = '$baseUrl$profile/upload-image';
-
+  static const String updateProfile = '$users/profile';
+  static const String uploadProfileImage = '$users/profile/image';
+  
   // Activity endpoints
   static const String activities = '$baseUrl$exercise/activities';
 }

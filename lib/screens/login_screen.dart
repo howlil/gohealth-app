@@ -13,7 +13,7 @@ import '../widgets/auth/google_sign_in_button.dart';
 import '../widgets/glass_card.dart';
 import '../utils/app_text_styles.dart';
 import '../utils/app_constants.dart';
-import '../utils/app_routes.dart';
+import '../utils/api_endpoints.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

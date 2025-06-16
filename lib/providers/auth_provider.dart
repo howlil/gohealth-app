@@ -1,96 +1,98 @@
 import 'package:flutter/material.dart';
-import '../models/auth_model.dart';
-import '../models/register_model.dart';
 import '../services/auth_service.dart';
+import '../models/auth_model.dart';
 import '../utils/storage_util.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
-  AuthModel? _auth;
+  AuthModel? _user;
   bool _isLoading = false;
+  bool _isLoggedIn = false;
   String? _error;
 
   // Getters
-  AuthModel? get auth => _auth;
+  AuthModel? get user => _user;
   bool get isLoading => _isLoading;
+  bool get isLoggedIn => _isLoggedIn;
   String? get error => _error;
-  bool get isLoggedIn => _auth != null;
 
-  // Initialize auth state
-  Future<void> initializeAuth() async {
+  // Constructor - check if user is already logged in
+  AuthProvider() {
+    _checkLoginStatus();
+  }
+
+  // Check if user is already logged in
+  Future<void> _checkLoginStatus() async {
     _setLoading(true);
     _clearError();
 
     try {
-      final token = await StorageUtil.getAccessToken();
-      if (token != null) {
-        final userData = await StorageUtil.getUserData();
+      final isAuthenticated = await _authService.isAuthenticated();
+      _isLoggedIn = isAuthenticated;
+
+      if (isAuthenticated) {
+        final userData = await _authService.getCurrentUser();
         if (userData != null) {
-          _auth = AuthModel.fromJson(userData);
+          _user = AuthModel(
+            id: userData['id'] ?? '',
+            name: userData['name'] ?? '',
+            email: userData['email'] ?? '',
+            profileImage: userData['profileImage'],
+            token: await StorageUtil.getAccessToken() ?? '',
+            refreshToken: await StorageUtil.getRefreshToken() ?? '',
+          );
         }
       }
     } catch (e) {
-      debugPrint('Error initializing auth: $e');
       _error = e.toString();
+      _isLoggedIn = false;
     } finally {
       _setLoading(false);
     }
   }
 
-  // Login
+  // Login with email and password
   Future<bool> login(String email, String password) async {
+    _setLoading(true);
+    _clearError();
+
     try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
+      final user = await _authService.login(email, password);
 
-      if (email.isEmpty || password.isEmpty) {
-        _error = 'Please enter both email and password';
-        return false;
-      }
-
-      final response = await _authService.login(email, password);
-
-      if (response.success && response.data != null) {
-        _auth = response.data;
-        await StorageUtil.setAccessToken(response.data!.token);
-        await StorageUtil.setUserData(response.data!.toJson());
-        _error = null;
+      if (user != null) {
+        _user = user;
+        _isLoggedIn = true;
         return true;
       } else {
-        _error = response.message;
+        _error = 'Login failed. Please check your credentials.';
         return false;
       }
     } catch (e) {
       _error = e.toString();
       return false;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      _setLoading(false);
     }
   }
 
-  // Register
-  Future<bool> register(RegisterModel registerData) async {
+  // Register new account
+  Future<bool> register(String name, String email, String password) async {
     _setLoading(true);
     _clearError();
 
     try {
-      final response = await _authService.register(registerData);
-      if (response?.success == true && response?.data != null) {
-        _auth = response!.data;
-        await StorageUtil.setAccessToken(response.data!.token);
-        await StorageUtil.setUserData(response.data!.toJson());
-        debugPrint('Registration successful');
+      final user = await _authService.register(name, email, password);
+
+      if (user != null) {
+        _user = user;
+        _isLoggedIn = true;
         return true;
       } else {
-        _error = response?.message ?? 'Registration failed';
-        debugPrint('Registration failed: $_error');
+        _error = 'Registration failed. Please try again.';
         return false;
       }
     } catch (e) {
-      debugPrint('Registration error: $e');
       _error = e.toString();
       return false;
     } finally {
@@ -99,48 +101,88 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Logout
-  Future<void> logout() async {
+  Future<bool> logout() async {
     _setLoading(true);
     _clearError();
 
     try {
-      await StorageUtil.clearAll();
-      _auth = null;
-      debugPrint('Logout successful');
+      final success = await _authService.logout();
+
+      if (success) {
+        _user = null;
+        _isLoggedIn = false;
+        return true;
+      } else {
+        _error = 'Logout failed. Please try again.';
+        return false;
+      }
     } catch (e) {
-      debugPrint('Logout error: $e');
       _error = e.toString();
+      return false;
     } finally {
       _setLoading(false);
     }
   }
 
-  // Google Sign In
-  Future<bool> signInWithGoogle() async {
+  // Request password reset
+  Future<bool> requestPasswordReset(String email) async {
     _setLoading(true);
     _clearError();
 
     try {
-      // TODO: Implement Google Sign In
-      return false;
+      final success = await _authService.requestPasswordReset(email);
+
+      if (!success) {
+        _error = 'Failed to send password reset email. Please try again.';
+      }
+
+      return success;
     } catch (e) {
-      debugPrint('Google sign in error: $e');
       _error = e.toString();
       return false;
     } finally {
       _setLoading(false);
     }
+  }
+
+  // Reset password with token
+  Future<bool> resetPassword(String token, String password) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final success = await _authService.resetPassword(token, password);
+
+      if (!success) {
+        _error = 'Failed to reset password. Please try again.';
+      }
+
+      return success;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  // Update user profile image after successful upload
+  void updateProfileImage(String imageUrl) {
+    if (_user != null) {
+      _user = _user!.copyWith(profileImage: imageUrl);
+      notifyListeners();
+    }
+  }
+
+  // Set loading state
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
   }
 
   // Clear error
   void _clearError() {
     _error = null;
-    notifyListeners();
-  }
-
-  // Helper method to set loading state
-  void _setLoading(bool loading) {
-    _isLoading = loading;
     notifyListeners();
   }
 }

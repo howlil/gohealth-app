@@ -34,6 +34,8 @@ class UserProfileData {
   final String? activityLevel;
   final String? token;
   final String? refreshToken;
+  final double? bmr;
+  final double? tdee;
 
   UserProfileData({
     required this.id,
@@ -47,6 +49,8 @@ class UserProfileData {
     this.activityLevel,
     this.token,
     this.refreshToken,
+    this.bmr,
+    this.tdee,
   });
 
   Map<String, dynamic> toJson() {
@@ -62,6 +66,8 @@ class UserProfileData {
       'activityLevel': activityLevel,
       'token': token,
       'refreshToken': refreshToken,
+      'bmr': bmr,
+      'tdee': tdee,
     };
   }
 
@@ -78,6 +84,8 @@ class UserProfileData {
       activityLevel: json['activityLevel']?.toString(),
       token: json['token']?.toString(),
       refreshToken: json['refreshToken']?.toString(),
+      bmr: (json['bmr'] as num?)?.toDouble(),
+      tdee: (json['tdee'] as num?)?.toDouble(),
     );
   }
 
@@ -93,6 +101,8 @@ class UserProfileData {
     String? profileImage,
     String? token,
     String? refreshToken,
+    double? bmr,
+    double? tdee,
   }) {
     return UserProfileData(
       id: id ?? this.id,
@@ -106,6 +116,8 @@ class UserProfileData {
       profileImage: profileImage ?? this.profileImage,
       token: token ?? this.token,
       refreshToken: refreshToken ?? this.refreshToken,
+      bmr: bmr ?? this.bmr,
+      tdee: tdee ?? this.tdee,
     );
   }
 

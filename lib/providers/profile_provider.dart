@@ -33,21 +33,22 @@ class ProfileProvider extends ChangeNotifier {
       // Try to get current user profile
       final userProfileResponse = await _userService.getCurrentUser();
 
-      if (userProfileResponse != null &&
-          userProfileResponse.success &&
-          userProfileResponse.data != null) {
+      if (userProfileResponse?.success == true &&
+          userProfileResponse?.data != null) {
         // Convert UserProfileData to Profile
         _profile = Profile(
-          id: userProfileResponse.data!.id,
-          name: userProfileResponse.data!.name,
-          email: userProfileResponse.data!.email,
-          photoUrl: userProfileResponse.data!.profileImage,
-          gender: userProfileResponse.data!.gender ?? 'MALE',
-          age: userProfileResponse.data!.age ?? 25,
-          height: userProfileResponse.data!.height ?? 170.0,
-          weight: userProfileResponse.data!.weight ?? 70.0,
+          id: userProfileResponse!.data.id,
+          name: userProfileResponse.data.name,
+          email: userProfileResponse.data.email,
+          photoUrl: userProfileResponse.data.profileImage,
+          gender: userProfileResponse.data.gender ?? 'MALE',
+          age: userProfileResponse.data.age ?? 25,
+          height: userProfileResponse.data.height ?? 170.0,
+          weight: userProfileResponse.data.weight ?? 70.0,
           activityLevel:
-              userProfileResponse.data!.activityLevel ?? 'MODERATELY_ACTIVE',
+              userProfileResponse.data.activityLevel ?? 'MODERATELY_ACTIVE',
+          bmr: userProfileResponse.data.bmr,
+          tdee: userProfileResponse.data.tdee,
         );
 
         _isInitialized = true;
@@ -79,28 +80,30 @@ class ProfileProvider extends ChangeNotifier {
         name: updatedProfile.name,
         email: updatedProfile.email,
         age: updatedProfile.age,
-        refreshToken: '', // Add required refreshToken parameter
         gender: updatedProfile.gender,
         height: updatedProfile.height,
         weight: updatedProfile.weight,
         activityLevel: updatedProfile.activityLevel,
         profileImage: updatedProfile.photoUrl,
-        token: '', // Token will be handled by the service
+        bmr: updatedProfile.bmr,
+        tdee: updatedProfile.tdee,
       );
 
       final response = await _userService.updateProfile(userProfileData);
       if (response?.success == true && response?.data != null) {
         // Convert UserProfileData back to Profile
         _profile = Profile(
-          id: response!.data!.id,
-          name: response.data!.name,
-          email: response.data!.email,
-          photoUrl: response.data!.profileImage,
-          gender: response.data!.gender ?? 'MALE',
-          age: response.data!.age ?? 25,
-          height: response.data!.height ?? 170.0,
-          weight: response.data!.weight ?? 70.0,
-          activityLevel: response.data!.activityLevel ?? 'MODERATELY_ACTIVE',
+          id: response!.data.id,
+          name: response.data.name,
+          email: response.data.email,
+          photoUrl: response.data.profileImage,
+          gender: response.data.gender ?? 'MALE',
+          age: response.data.age ?? 25,
+          height: response.data.height ?? 170.0,
+          weight: response.data.weight ?? 70.0,
+          activityLevel: response.data.activityLevel ?? 'MODERATELY_ACTIVE',
+          bmr: response.data.bmr,
+          tdee: response.data.tdee,
         );
         debugPrint('Profile updated successfully');
         return true;
@@ -155,21 +158,22 @@ class ProfileProvider extends ChangeNotifier {
       // Try to get current user profile
       final userProfileResponse = await _userService.getCurrentUser();
 
-      if (userProfileResponse != null &&
-          userProfileResponse.success &&
-          userProfileResponse.data != null) {
+      if (userProfileResponse?.success == true &&
+          userProfileResponse?.data != null) {
         // Convert UserProfileData to Profile
         _profile = Profile(
-          id: userProfileResponse.data!.id,
-          name: userProfileResponse.data!.name,
-          email: userProfileResponse.data!.email,
-          photoUrl: userProfileResponse.data!.profileImage,
-          gender: userProfileResponse.data!.gender ?? 'MALE',
-          age: userProfileResponse.data!.age ?? 25,
-          height: userProfileResponse.data!.height ?? 170.0,
-          weight: userProfileResponse.data!.weight ?? 70.0,
+          id: userProfileResponse!.data.id,
+          name: userProfileResponse.data.name,
+          email: userProfileResponse.data.email,
+          photoUrl: userProfileResponse.data.profileImage,
+          gender: userProfileResponse.data.gender ?? 'MALE',
+          age: userProfileResponse.data.age ?? 25,
+          height: userProfileResponse.data.height ?? 170.0,
+          weight: userProfileResponse.data.weight ?? 70.0,
           activityLevel:
-              userProfileResponse.data!.activityLevel ?? 'MODERATELY_ACTIVE',
+              userProfileResponse.data.activityLevel ?? 'MODERATELY_ACTIVE',
+          bmr: userProfileResponse.data.bmr,
+          tdee: userProfileResponse.data.tdee,
         );
 
         debugPrint('Profile refreshed successfully');
