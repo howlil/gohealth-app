@@ -18,17 +18,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Dummy data untuk grafik
-  final List<FlSpot> weeklyCaloriesData = [
-    FlSpot(0, 1200), // Sun
-    FlSpot(1, 1350), // Mon
-    FlSpot(2, 1400), // Tue
-    FlSpot(3, 1200), // Wed
-    FlSpot(4, 1500), // Thu
-    FlSpot(5, 1600), // Fri
-    FlSpot(6, 1450), // Sat
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -57,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: AppColors.primary.withOpacity(0.1),
               ),
             ),
           ),
@@ -69,43 +58,75 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary.withValues(alpha: 0.08),
+                color: AppColors.secondary.withOpacity(0.08),
               ),
             ),
           ),
 
           // Main content
-          SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                _buildHeader(),
-                const SizedBox(height: 16),
-                _buildStatCards(),
-                const SizedBox(height: 24),
-                _buildCaloriesTracker(),
-                const SizedBox(height: 24),
-                _buildActionCards(),
-                const SizedBox(height: 16),
-                _buildBottomStats(),
-                const SizedBox(height: 24),
-              ],
-            ),
+          Consumer<DashboardProvider>(
+            builder: (context, dashboardProvider, child) {
+              if (dashboardProvider.isLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(),
+                );
+              }
+
+              if (dashboardProvider.error != null) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Error: ${dashboardProvider.error}',
+                        style: TextStyle(color: Colors.red.shade700),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => dashboardProvider.loadDashboardData(),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 16),
+                    _buildHeader(dashboardProvider),
+                    const SizedBox(height: 16),
+                    _buildStatCards(dashboardProvider),
+                    const SizedBox(height: 24),
+                    _buildCaloriesTracker(dashboardProvider),
+                    const SizedBox(height: 24),
+                    _buildActionCards(),
+                    const SizedBox(height: 16),
+                    _buildBottomStats(dashboardProvider),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(DashboardProvider dashboardProvider) {
+    final userName = dashboardProvider.userName;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Hey Ulil",
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        Text(
+          "Hey ${userName.split(' ').first}",
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         Text(
           'Selamat datang di GoHealth',
@@ -115,23 +136,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStatCards() {
+  Widget _buildStatCards(DashboardProvider dashboardProvider) {
+    final startWeight = dashboardProvider.weightGoalStartWeight;
+    final targetWeight = dashboardProvider.weightGoalTargetWeight;
+    final dailyCal = dashboardProvider.caloriesTarget.toInt();
+    
     return Row(
       children: [
         Expanded(
           child: StatChip(
             title: 'Start Weight',
-            value: '55.5 KG',
-            color: AppColors.primary.withValues(alpha: 0.08),
+            value: '${startWeight.toStringAsFixed(1)} KG',
+            color: AppColors.primary.withOpacity(0.8),
             iconData: Icons.monitor_weight_outlined,
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: StatChip(
-            title: 'Goals',
-            value: '60 KG',
-            color: AppColors.secondary.withValues(alpha: 0.08),
+            title: 'Goal',
+            value: '${targetWeight.toStringAsFixed(1)} KG',
+            color: AppColors.secondary.withOpacity(0.8),
             iconData: Icons.flag_outlined,
           ),
         ),
@@ -139,8 +164,8 @@ class _HomeScreenState extends State<HomeScreen> {
         Expanded(
           child: StatChip(
             title: 'Daily Cal',
-            value: '15000',
-            color: AppColors.accent1.withValues(alpha: 0.08),
+            value: '$dailyCal',
+            color: AppColors.accent1.withOpacity(0.8),
             iconData: Icons.local_fire_department_outlined,
           ),
         ),
@@ -148,7 +173,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildCaloriesTracker() {
+  Widget _buildCaloriesTracker(DashboardProvider dashboardProvider) {
+    final spots = dashboardProvider.caloriesSpots;
+    final maxY = spots.isEmpty ? 2000.0 : (spots.map((spot) => spot.y).reduce((a, b) => a > b ? a : b) + 500.0).roundToDouble();
+    final labels = dashboardProvider.chartLabels;
+    final timeRange = dashboardProvider.timeRange;
+    
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,146 +190,166 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Calories Tracker',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Text(
-                  'This Week',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
+              _buildTimeRangeSelector(dashboardProvider),
             ],
           ),
           const SizedBox(height: 16),
           SizedBox(
             height: 180,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: false,
-                  horizontalInterval: 500,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: Colors.grey.shade200,
-                      strokeWidth: 1,
-                      dashArray: [5, 5],
-                    );
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  show: true,
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 30,
-                      getTitlesWidget: (value, meta) {
-                        final style = TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 11,
-                        );
-                        String text;
-                        switch (value.toInt()) {
-                          case 0:
-                            text = 'Sun';
-                            break;
-                          case 1:
-                            text = 'Mon';
-                            break;
-                          case 2:
-                            text = 'Tue';
-                            break;
-                          case 3:
-                            text = 'Wed';
-                            break;
-                          case 4:
-                            text = 'Thu';
-                            break;
-                          case 5:
-                            text = 'Fri';
-                            break;
-                          case 6:
-                            text = 'Sat';
-                            break;
-                          default:
-                            text = '';
-                            break;
-                        }
-                        return Text(text, style: style);
-                      },
+            child: spots.isEmpty
+                ? Center(
+                    child: Text(
+                      'No data available',
+                      style: TextStyle(color: Colors.grey.shade600),
                     ),
-                  ),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      interval: 500,
-                      reservedSize: 40,
-                      getTitlesWidget: (value, meta) {
-                        if (value == 0) return const SizedBox.shrink();
-                        return Text(
-                          value.toInt().toString(),
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 11,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  rightTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                minX: 0,
-                maxX: 6,
-                minY: 0,
-                maxY: 2000,
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: weeklyCaloriesData,
-                    isCurved: true,
-                    color: AppColors.primary,
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: AppColors.primary,
-                          strokeWidth: 2,
-                          strokeColor: Colors.white,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primary.withValues(alpha: 0.3),
-                          AppColors.primary.withValues(alpha: 0.0),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
+                  )
+                : LineChart(
+                    LineChartData(
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: false,
+                        horizontalInterval: maxY / 4,
+                        getDrawingHorizontalLine: (value) {
+                          return FlLine(
+                            color: Colors.grey.shade200,
+                            strokeWidth: 1,
+                            dashArray: [5, 5],
+                          );
+                        },
                       ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 30,
+                            getTitlesWidget: (value, meta) {
+                              if (value.toInt() >= labels.length || value.toInt() < 0) {
+                                return const SizedBox.shrink();
+                              }
+                              final style = TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 11,
+                              );
+                              String text = labels[value.toInt()];
+                              return Text(text, style: style);
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: maxY / 4,
+                            reservedSize: 40,
+                            getTitlesWidget: (value, meta) {
+                              if (value == 0) return const SizedBox.shrink();
+                              return Text(
+                                value.toInt().toString(),
+                                style: TextStyle(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 11,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        topTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                      ),
+                      borderData: FlBorderData(show: false),
+                      minX: 0,
+                      maxX: spots.length - 1.0,
+                      minY: 0,
+                      maxY: maxY,
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: spots,
+                          isCurved: true,
+                          color: AppColors.primary,
+                          barWidth: 3,
+                          isStrokeCapRound: true,
+                          dotData: FlDotData(
+                            show: true,
+                            getDotPainter: (spot, percent, barData, index) {
+                              return FlDotCirclePainter(
+                                radius: 4,
+                                color: AppColors.primary,
+                                strokeWidth: 2,
+                                strokeColor: Colors.white,
+                              );
+                            },
+                          ),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.primary.withOpacity(0.3),
+                                AppColors.primary.withOpacity(0.0),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTimeRangeSelector(DashboardProvider dashboardProvider) {
+    final currentRange = dashboardProvider.timeRange;
+    
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      color: AppColors.primary.withOpacity(0.05),
+      borderColor: AppColors.primary.withOpacity(0.1),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildTimeRangeButton(
+            text: 'Week',
+            isSelected: currentRange == 'week',
+            onTap: () => dashboardProvider.changeTimeRange('week'),
+          ),
+          _buildTimeRangeButton(
+            text: 'Month',
+            isSelected: currentRange == 'month',
+            onTap: () => dashboardProvider.changeTimeRange('month'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimeRangeButton({
+    required String text, 
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: isSelected ? Colors.white : AppColors.primary,
+          ),
+        ),
       ),
     );
   }
@@ -309,11 +359,11 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Expanded(
           child: ActionGlassCard(
-            title: 'IBM',
+            title: 'BMI',
             subtitle: 'Control Your Weight',
             icon: Icons.monitor_weight_outlined,
             color: AppColors.secondary,
-            onTap: () => context.go('/ibm'),
+            onTap: () => context.go('/bmi'),
           ),
         ),
         const SizedBox(width: 12),
@@ -330,35 +380,70 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBottomStats() {
+  Widget _buildBottomStats(DashboardProvider dashboardProvider) {
+    final bmi = dashboardProvider.bmiValue;
+    final status = dashboardProvider.bmiStatus;
+    final caloriesNeed = dashboardProvider.caloriesTarget.toInt();
+    
     return GlassCard(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _buildStatItem(
-            title: 'IBM',
-            value: '20.1',
+            title: 'BMI',
+            value: bmi.toStringAsFixed(1),
             icon: Icons.monitor_weight_outlined,
             color: AppColors.primary,
           ),
           _buildDivider(),
           _buildStatItem(
             title: 'Status',
-            value: 'Normal',
+            value: _formatBmiStatus(status),
             icon: Icons.check_circle_outline,
-            color: Colors.green,
+            color: _getBmiStatusColor(status),
           ),
           _buildDivider(),
           _buildStatItem(
             title: 'Cal. Need',
-            value: '12000',
+            value: caloriesNeed.toString(),
             icon: Icons.local_fire_department_outlined,
             color: AppColors.accent1,
           ),
         ],
       ),
     );
+  }
+
+  String _formatBmiStatus(String status) {
+    if (status.isEmpty) return 'Unknown';
+    
+    // Convert from SNAKE_CASE to Title Case
+    final words = status.split('_');
+    if (words.isEmpty) return 'Unknown';
+    
+    if (words.length == 1) {
+      return words[0][0].toUpperCase() + words[0].substring(1).toLowerCase();
+    }
+    
+    return words.map((word) => 
+      word[0].toUpperCase() + word.substring(1).toLowerCase()
+    ).join(' ');
+  }
+
+  Color _getBmiStatusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'UNDERWEIGHT':
+        return Colors.blue;
+      case 'NORMAL':
+        return Colors.green;
+      case 'OVERWEIGHT':
+        return Colors.orange;
+      case 'OBESE':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildStatItem({
