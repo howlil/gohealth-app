@@ -62,7 +62,7 @@ class FoodItem extends StatelessWidget {
                             ),
                           )
                         : Icon(
-                            _getCategoryIcon(food.category ?? 'Umum'),
+                            _getCategoryIcon(food.category?.name ?? 'Umum'),
                             size: 20,
                             color: Colors.grey.shade700,
                           ),
@@ -83,12 +83,23 @@ class FoodItem extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${food.calories} kcal per ${food.weight}',
+                          '${food.calories.toStringAsFixed(0)} kcal per ${food.weight?.toStringAsFixed(0) ?? '100'}g',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade600,
                           ),
                         ),
+                        if (food.category != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            food.category!.name,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade500,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -120,17 +131,26 @@ class FoodItem extends StatelessWidget {
   }
 
   IconData _getCategoryIcon(String category) {
-    switch (category) {
-      case 'Buah-buahan':
+    switch (category.toLowerCase()) {
+      case 'buah':
+      case 'buah-buahan':
         return Icons.apple;
-      case 'Sayuran':
+      case 'sayuran':
         return Icons.eco;
-      case 'Protein':
+      case 'daging':
+      case 'protein':
         return Icons.egg;
-      case 'Karbohidrat':
+      case 'karbohidrat':
+      case 'beras & sereal':
         return Icons.rice_bowl;
-      case 'Minuman':
+      case 'minuman':
         return Icons.local_drink;
+      case 'keju & susu':
+        return Icons.local_drink;
+      case 'ikan & seafood':
+        return Icons.set_meal;
+      case 'kacang-kacangan':
+        return Icons.grain;
       default:
         return Icons.food_bank;
     }

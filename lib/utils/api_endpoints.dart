@@ -8,18 +8,25 @@ class ApiEndpoints {
   static const String health = '/health';
   static const String exercise = '/exercise';
   static const String nutrition = '/nutrition';
+  static const String meals = '/api/meals';
   static const String water = '/water';
   static const String sleep = '/sleep';
   static const String weight = '/weight';
   static const String goal = '/goal';
   static const String notification = '/notification';
   static const String setting = '/setting';
-  
+
   // User endpoints
   static const String me = '$baseUrl$auth/me';
   static const String updateProfile = '$users/profile';
   static const String uploadProfileImage = '$users/profile/image';
-  
+
   // Activity endpoints
   static const String activities = '$baseUrl$exercise/activities';
+
+  // Meal endpoints
+  static const String foods = '$meals/foods';
+  static const String foodCategories = '$meals/foods/categories';
+  static const String foodAutocomplete = '$meals/foods/autocomplete';
+  static const String favorites = '$meals/favorites';
 }

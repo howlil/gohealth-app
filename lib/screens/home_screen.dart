@@ -105,7 +105,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildCaloriesTracker(dashboardProvider),
                     const SizedBox(height: 24),
                     _buildActionCards(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
+                    _buildNutritionSummary(dashboardProvider),
+                    const SizedBox(height: 24),
                     _buildBottomStats(dashboardProvider),
                     const SizedBox(height: 24),
                   ],
@@ -120,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHeader(DashboardProvider dashboardProvider) {
     final userName = dashboardProvider.userName;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -140,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final startWeight = dashboardProvider.weightGoalStartWeight;
     final targetWeight = dashboardProvider.weightGoalTargetWeight;
     final dailyCal = dashboardProvider.caloriesTarget.toInt();
-    
+
     return Row(
       children: [
         Expanded(
@@ -175,10 +177,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCaloriesTracker(DashboardProvider dashboardProvider) {
     final spots = dashboardProvider.caloriesSpots;
-    final maxY = spots.isEmpty ? 2000.0 : (spots.map((spot) => spot.y).reduce((a, b) => a > b ? a : b) + 500.0).roundToDouble();
+    final maxY = spots.isEmpty
+        ? 2000.0
+        : (spots.map((spot) => spot.y).reduce((a, b) => a > b ? a : b) + 500.0)
+            .roundToDouble();
     final labels = dashboardProvider.chartLabels;
     final timeRange = dashboardProvider.timeRange;
-    
+
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,7 +229,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             showTitles: true,
                             reservedSize: 30,
                             getTitlesWidget: (value, meta) {
-                              if (value.toInt() >= labels.length || value.toInt() < 0) {
+                              if (value.toInt() >= labels.length ||
+                                  value.toInt() < 0) {
                                 return const SizedBox.shrink();
                               }
                               final style = TextStyle(
@@ -306,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildTimeRangeSelector(DashboardProvider dashboardProvider) {
     final currentRange = dashboardProvider.timeRange;
-    
+
     return GlassCard(
       padding: EdgeInsets.zero,
       color: AppColors.primary.withOpacity(0.05),
@@ -330,7 +336,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildTimeRangeButton({
-    required String text, 
+    required String text,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
@@ -380,11 +386,131 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildNutritionSummary(DashboardProvider dashboardProvider) {
+    final nutritionSummary = dashboardProvider.nutritionSummary;
+
+    if (nutritionSummary == null) {
+      return const SizedBox.shrink();
+    }
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Daily Nutrition Recommendation',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+
+          // Calories
+          _buildNutrientRow(
+            icon: Icons.local_fire_department_outlined,
+            title: 'Calories',
+            min: nutritionSummary.calories.min,
+            max: nutritionSummary.calories.max,
+            unit: 'kcal',
+            color: AppColors.accent1,
+          ),
+          const SizedBox(height: 12),
+
+          // Protein
+          _buildNutrientRow(
+            icon: Icons.fitness_center_outlined,
+            title: 'Protein',
+            min: nutritionSummary.protein.min,
+            max: nutritionSummary.protein.max,
+            unit: nutritionSummary.protein.unit,
+            color: AppColors.primary,
+          ),
+          const SizedBox(height: 12),
+
+          // Carbs
+          _buildNutrientRow(
+            icon: Icons.grain_outlined,
+            title: 'Carbohydrate',
+            min: nutritionSummary.carbohydrate.min,
+            max: nutritionSummary.carbohydrate.max,
+            unit: nutritionSummary.carbohydrate.unit,
+            color: AppColors.secondary,
+          ),
+          const SizedBox(height: 12),
+
+          // Fat
+          _buildNutrientRow(
+            icon: Icons.opacity_outlined,
+            title: 'Fat',
+            min: nutritionSummary.fat.min,
+            max: nutritionSummary.fat.max,
+            unit: nutritionSummary.fat.unit,
+            color: Colors.amber,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNutrientRow({
+    required IconData icon,
+    required String title,
+    required int min,
+    required int max,
+    required String unit,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              Text(
+                '$min - $max $unit',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            'Essential',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildBottomStats(DashboardProvider dashboardProvider) {
     final bmi = dashboardProvider.bmiValue;
     final status = dashboardProvider.bmiStatus;
     final caloriesNeed = dashboardProvider.caloriesTarget.toInt();
-    
+
     return GlassCard(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       child: Row(
@@ -417,18 +543,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _formatBmiStatus(String status) {
     if (status.isEmpty) return 'Unknown';
-    
+
     // Convert from SNAKE_CASE to Title Case
     final words = status.split('_');
     if (words.isEmpty) return 'Unknown';
-    
+
     if (words.length == 1) {
       return words[0][0].toUpperCase() + words[0].substring(1).toLowerCase();
     }
-    
-    return words.map((word) => 
-      word[0].toUpperCase() + word.substring(1).toLowerCase()
-    ).join(' ');
+
+    return words
+        .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
+        .join(' ');
   }
 
   Color _getBmiStatusColor(String status) {

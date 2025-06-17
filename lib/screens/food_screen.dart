@@ -4,9 +4,11 @@ import '../utils/app_colors.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/food/food_item.dart';
 import '../widgets/inputs/nutrient_bar.dart';
-import '../widgets/inputs/round_search_field.dart';
-import '../widgets/inputs/tab_selector.dart';
+import '../widgets/inputs/modern_search_field.dart';
+import '../widgets/inputs/category_filter_chips.dart';
+import '../widgets/loading_skeleton.dart';
 import '../models/food_model.dart';
+import '../services/meal_service.dart';
 
 class FoodScreen extends StatefulWidget {
   const FoodScreen({super.key});
@@ -17,167 +19,257 @@ class FoodScreen extends StatefulWidget {
 
 class _FoodScreenState extends State<FoodScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final MealService _mealService = MealService();
+
   String _selectedTab = 'Semua';
   Food? _selectedFood;
 
-  final List<String> _tabs = ['Semua', 'Buah-buahan', 'Sayuran', 'Favorit'];
-  // Dummy data untuk daftar makanan
-  final List<Food> _foods = [
-    Food(
-      id: '1',
-      name: 'Apel',
-      calories: 52,
-      protein: 0.3,
-      carbs: 13.8,
-      fat: 0.2,
-      weight: 100,
-      nutrients: {
-        'Karbohidrat': 13.8,
-        'Protein': 0.3,
-        'Lemak': 0.2,
-        'Serat': 2.4,
-      },
-      vitamins: {
-        'Vitamin C': 8.0,
-        'Vitamin K': 2.2,
-        'Vitamin A': 3.0,
-      },
-      imageUrl: null,
-      category: 'Buah-buahan',
-      isFavorite: false,
-      description:
-          'Buah apel mengandung serat yang tinggi dan dapat membantu menjaga kesehatan pencernaan, serta kaya antioksidan yang memiliki sifat anti-kanker dan anti-inflamasi.',
-    ),
-    Food(
-      id: '2',
-      name: 'Pisang',
-      calories: 89,
-      protein: 1.1,
-      carbs: 22.8,
-      fat: 0.3,
-      weight: 100,
-      nutrients: {
-        'Karbohidrat': 22.8,
-        'Protein': 1.1,
-        'Lemak': 0.3,
-        'Serat': 2.6,
-      },
-      vitamins: {},
-      imageUrl: null,
-      category: 'Buah-buahan',
-      isFavorite: false,
-      description:
-          'Pisang kaya akan potasium dan vitamin B6 yang membantu fungsi jantung dan sistem saraf.',
-    ),
-    Food(
-      id: '3',
-      name: 'Brokoli',
-      calories: 55,
-      protein: 2.8,
-      carbs: 11.2,
-      fat: 0.4,
-      weight: 100,
-      nutrients: {
-        'Karbohidrat': 11.2,
-        'Protein': 2.8,
-        'Lemak': 0.4,
-        'Serat': 2.6,
-      },
-      vitamins: {
-        'Vitamin C': 89.2,
-        'Vitamin K': 102.0,
-        'Vitamin A': 31.0,
-      },
-      imageUrl: null,
-      category: 'Sayuran',
-      isFavorite: true,
-      description:
-          'Brokoli adalah sayuran yang kaya vitamin C, vitamin K dan serat. Sayuran yang mengandung sulforaphane, senyawa yang memiliki sifat anti-kanker dan anti-inflamasi.',
-    ),
-    Food(
-      id: '4',
-      name: 'Dada Ayam',
-      calories: 165,
-      protein: 31.0,
-      carbs: 0.0,
-      fat: 3.6,
-      weight: 100,
-      nutrients: {
-        'Karbohidrat': 0.0,
-        'Protein': 31.0,
-        'Lemak': 3.6,
-        'Serat': 0.0,
-      },
-      vitamins: {},
-      imageUrl: null,
-      category: 'Protein',
-      isFavorite: false,
-      description:
-          'Dada ayam adalah sumber protein berkualitas tinggi dengan kandungan lemak yang rendah.',
-    ),
-    Food(
-      id: '5',
-      name: 'Nasi Merah',
-      calories: 111,
-      protein: 2.6,
-      carbs: 23.5,
-      fat: 0.9,
-      weight: 100,
-      nutrients: {
-        'Karbohidrat': 23.5,
-        'Protein': 2.6,
-        'Lemak': 0.9,
-        'Serat': 1.8,
-      },
-      vitamins: {},
-      imageUrl: null,
-      category: 'Karbohidrat',
-      isFavorite: false,
-      description:
-          'Nasi merah kaya akan serat dan nutrisi, serta memiliki indeks glikemik yang lebih rendah dibanding nasi putih.',
-    ),
-    Food(
-      id: '6',
-      name: 'Susu Rendah Lemak',
-      calories: 42,
-      protein: 3.5,
-      carbs: 5.0,
-      fat: 1.0,
-      weight: 100,
-      nutrients: {
-        'Karbohidrat': 5.0,
-        'Protein': 3.5,
-        'Lemak': 1.0,
-        'Serat': 0.0,
-      },
-      vitamins: {},
-      imageUrl: null,
-      category: 'Minuman',
-      isFavorite: false,
-      description:
-          'Susu rendah lemak menyediakan kalsium dan protein tanpa lemak jenuh yang tinggi.',
-    ),
-  ];
+  List<FoodCategory> _categories = [];
+  List<Food> _foods = [];
+  List<Food> _favoriteFoods = [];
+
+  bool _isLoading = false;
+  bool _isLoadingCategories = false;
+
+  String? _errorMessage;
+
+  int _currentPage = 0;
+  bool _hasMoreData = true;
+  static const int _pageSize = 20;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    await Future.wait([
+      _loadCategories(),
+      _loadFoods(refresh: true),
+      _loadFavorites(),
+    ]);
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() {
+      _isLoadingCategories = true;
+    });
+
+    try {
+      final response = await _mealService.getFoodCategories();
+      if (mounted &&
+          response != null &&
+          response.success &&
+          response.data != null) {
+        setState(() {
+          _categories = response.data!;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading categories: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingCategories = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadFoods({bool refresh = false}) async {
+    if (refresh) {
+      setState(() {
+        _currentPage = 0;
+        _hasMoreData = true;
+        _foods = [];
+      });
+    }
+
+    if (!_hasMoreData || _isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      String? categorySlug;
+      if (_selectedTab != 'Semua' && _selectedTab != 'Favorit') {
+        final category = _categories.firstWhere(
+          (cat) => cat.name == _selectedTab,
+          orElse: () => _categories.first,
+        );
+        categorySlug = category.slug;
+      }
+
+      final response = await _mealService.getFoods(
+        search:
+            _searchController.text.isNotEmpty ? _searchController.text : null,
+        category: categorySlug,
+        page: _currentPage,
+        limit: _pageSize,
+      );
+
+      if (mounted &&
+          response != null &&
+          response.success &&
+          response.data != null) {
+        final newFoods = response.data!['foods'] as List<Food>;
+
+        // Sync favorite status with favorite list
+        final syncedFoods = newFoods.map((food) {
+          final isFavorite = _favoriteFoods.any((fav) => fav.id == food.id);
+          return food.copyWith(isFavorite: isFavorite);
+        }).toList();
+
+        setState(() {
+          if (refresh) {
+            _foods = syncedFoods;
+          } else {
+            _foods.addAll(syncedFoods);
+          }
+          _hasMoreData = newFoods.length == _pageSize;
+          _currentPage++;
+        });
+      } else {
+        setState(() {
+          _errorMessage = response?.message ?? 'Gagal memuat data makanan';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Terjadi kesalahan: ${e.toString()}';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadFavorites() async {
+    try {
+      final response = await _mealService.getFavoriteFoods();
+      if (mounted &&
+          response != null &&
+          response.success &&
+          response.data != null) {
+        setState(() {
+          // Ensure all favorites have isFavorite = true
+          _favoriteFoods = (response.data!['foods'] as List<Food>)
+              .map((food) => food.copyWith(isFavorite: true))
+              .toList();
+
+          // Update main food list if already loaded
+          if (_foods.isNotEmpty) {
+            for (var i = 0; i < _foods.length; i++) {
+              final isFavorite =
+                  _favoriteFoods.any((fav) => fav.id == _foods[i].id);
+              if (_foods[i].isFavorite != isFavorite) {
+                _foods[i] = _foods[i].copyWith(isFavorite: isFavorite);
+              }
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading favorites: $e');
+    }
+  }
+
+  Future<void> _toggleFavorite(Food food) async {
+    try {
+      if (food.isFavorite) {
+        final response = await _mealService.removeFromFavorites(food.id);
+        if (response != null && response.success) {
+          setState(() {
+            // Update the food in the main list
+            final index = _foods.indexWhere((f) => f.id == food.id);
+            if (index != -1) {
+              _foods[index] = _foods[index].copyWith(isFavorite: false);
+            }
+
+            // Remove from favorites list
+            _favoriteFoods.removeWhere((f) => f.id == food.id);
+
+            // Update selected food if it's the same
+            if (_selectedFood?.id == food.id) {
+              _selectedFood = _selectedFood!.copyWith(isFavorite: false);
+            }
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${food.name} dihapus dari favorit'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      } else {
+        final response = await _mealService.addToFavorites(food.id);
+        if (response != null && response.success) {
+          setState(() {
+            // Update the food in the main list
+            final index = _foods.indexWhere((f) => f.id == food.id);
+            if (index != -1) {
+              _foods[index] = _foods[index].copyWith(isFavorite: true);
+            }
+
+            // Add to favorites list
+            final updatedFood = food.copyWith(isFavorite: true);
+            _favoriteFoods.add(updatedFood);
+
+            // Update selected food if it's the same
+            if (_selectedFood?.id == food.id) {
+              _selectedFood = _selectedFood!.copyWith(isFavorite: true);
+            }
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${food.name} ditambahkan ke favorit'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengubah status favorit: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   List<Food> get _filteredFoods {
-    var filteredList = _foods;
-
-    // Filter berdasarkan tab yang dipilih
     if (_selectedTab == 'Favorit') {
-      filteredList = filteredList.where((food) => food.isFavorite).toList();
-    } else if (_selectedTab != 'Semua') {
-      filteredList =
-          filteredList.where((food) => food.category == _selectedTab).toList();
+      return _favoriteFoods.where((food) {
+        if (_searchController.text.isEmpty) return true;
+        return food.name
+            .toLowerCase()
+            .contains(_searchController.text.toLowerCase());
+      }).toList();
     }
 
-    // Filter berdasarkan pencarian
-    if (_searchController.text.isNotEmpty) {
-      final query = _searchController.text.toLowerCase();
-      filteredList = filteredList
-          .where((food) => food.name.toLowerCase().contains(query))
-          .toList();
-    }
-
-    return filteredList;
+    return _foods.where((food) {
+      if (_searchController.text.isEmpty) return true;
+      return food.name
+          .toLowerCase()
+          .contains(_searchController.text.toLowerCase());
+    }).toList();
   }
 
   @override
@@ -203,8 +295,7 @@ class _FoodScreenState extends State<FoodScreen> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary.withValues(
-                    alpha: 0.05), // Fixed: withOpacity to withValues
+                color: AppColors.primary.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -216,8 +307,7 @@ class _FoodScreenState extends State<FoodScreen> {
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary.withValues(
-                    alpha: 0.05), // Fixed: withOpacity to withValues
+                color: AppColors.secondary.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -233,24 +323,34 @@ class _FoodScreenState extends State<FoodScreen> {
                     const SizedBox(height: 16),
                     _buildHeader(),
                     const SizedBox(height: 16),
-                    RoundSearchField(
+                    _buildQuickStats(),
+                    const SizedBox(height: 16),
+                    ModernSearchField(
                       controller: _searchController,
                       onChanged: (value) {
                         setState(() {});
+                        if (_selectedTab != 'Favorit') {
+                          _loadFoods(refresh: true);
+                        }
                       },
-                      hintText:
-                          'Cari makanan...', // Added missing required parameter
+                      hintText: 'Cari makanan...',
                     ),
                     const SizedBox(height: 16),
-                    TabSelector(
-                      tabs: _tabs,
-                      selectedIndex: _tabs.indexOf(_selectedTab),
-                      onTabSelected: (index) {
-                        setState(() {
-                          _selectedTab = _tabs[index];
-                        });
-                      },
-                    ),
+                    if (_isLoadingCategories)
+                      const Center(child: CircularProgressIndicator())
+                    else
+                      CategoryFilterChips(
+                        categories: _categories.map((cat) => cat.name).toList(),
+                        selectedCategory: _selectedTab,
+                        onCategorySelected: (category) {
+                          setState(() {
+                            _selectedTab = category;
+                          });
+                          if (_selectedTab != 'Favorit') {
+                            _loadFoods(refresh: true);
+                          }
+                        },
+                      ),
                     const SizedBox(height: 16),
                   ],
                 ),
@@ -258,9 +358,27 @@ class _FoodScreenState extends State<FoodScreen> {
 
               // Daftar makanan dan detail
               Expanded(
-                child: _selectedFood == null
-                    ? _buildFoodList()
-                    : _buildFoodDetails(),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.0, 0.02),
+                          end: Offset.zero,
+                        ).animate(CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutCubic,
+                        )),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: _selectedFood == null
+                      ? _buildFoodList()
+                      : _buildFoodDetails(),
+                ),
               ),
             ],
           ),
@@ -270,69 +388,272 @@ class _FoodScreenState extends State<FoodScreen> {
   }
 
   Widget _buildHeader() {
-    return const Text(
-      'Cari Makanan',
-      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Database Makanan',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _selectedTab == 'Favorit'
+                  ? '${_favoriteFoods.length} makanan favorit'
+                  : _selectedTab == 'Semua'
+                      ? '${_foods.length}+ makanan tersedia'
+                      : '${_filteredFoods.length} makanan dalam kategori',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            Icons.restaurant_menu_rounded,
+            color: AppColors.primary,
+            size: 24,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickStats() {
+    return SizedBox(
+      height: 80,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          _buildStatCard(
+            icon: Icons.restaurant_rounded,
+            label: 'Total Makanan',
+            value: _foods.length.toString(),
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: 12),
+          _buildStatCard(
+            icon: Icons.category_rounded,
+            label: 'Kategori',
+            value: _categories.length.toString(),
+            color: AppColors.secondary,
+          ),
+          const SizedBox(width: 12),
+          _buildStatCard(
+            icon: Icons.favorite_rounded,
+            label: 'Favorit',
+            value: _favoriteFoods.length.toString(),
+            color: Colors.red.shade400,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      width: 120,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: color,
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildFoodList() {
-    return _filteredFoods.isEmpty
-        ? Center(
-            child: Text(
-              'Tidak ada makanan yang ditemukan',
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+    if (_errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _errorMessage!,
+              style: TextStyle(fontSize: 16, color: Colors.red.shade600),
+              textAlign: TextAlign.center,
             ),
-          )
-        : ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            itemCount: _filteredFoods.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final food = _filteredFoods[index];
-              return FoodItem(
-                food: food,
-                onTap: () {
-                  setState(() {
-                    _selectedFood = food;
-                  });
-                },
-                onFavoriteToggle: () {
-                  // Since isFavorite is final, we need to create a new Food object
-                  // For a real app, you would use proper state management like Provider, Riverpod, or BLoC
-                  setState(() {
-                    final index = _foods.indexOf(food);
-                    if (index != -1) {
-                      // Create a new Food object with toggled isFavorite value
-                      final updatedFood = Food(
-                        id: food.id,
-                        name: food.name,
-                        calories: food.calories,
-                        protein: food.protein,
-                        carbs: food.carbs,
-                        fat: food.fat,
-                        weight: food.weight,
-                        nutrients: food.nutrients,
-                        vitamins: food.vitamins,
-                        imageUrl: food.imageUrl,
-                        category: food.category,
-                        isFavorite: !food.isFavorite,
-                        description: food.description,
-                      );
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _loadFoods(refresh: true),
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      );
+    }
 
-                      // Replace the old food with the updated one
-                      _foods[index] = updatedFood;
+    if (_isLoading && _foods.isEmpty) {
+      return ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        itemCount: 5,
+        separatorBuilder: (context, index) => const SizedBox(height: 10),
+        itemBuilder: (context, index) => const FoodItemSkeleton(),
+      );
+    }
 
-                      // If this was the selected food, update that reference too
-                      if (_selectedFood == food) {
-                        _selectedFood = updatedFood;
-                      }
-                    }
+    final filteredFoods = _filteredFoods;
+
+    if (filteredFoods.isEmpty && !_isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _selectedTab == 'Favorit'
+                    ? Icons.favorite_border_rounded
+                    : Icons.search_off_rounded,
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _selectedTab == 'Favorit'
+                  ? 'Belum ada makanan favorit'
+                  : 'Tidak ada makanan yang ditemukan',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _selectedTab == 'Favorit'
+                  ? 'Tap ikon hati untuk menambahkan favorit'
+                  : 'Coba cari dengan kata kunci lain',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade500,
+              ),
+            ),
+            if (_selectedTab != 'Favorit') ...[
+              const SizedBox(height: 24),
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _selectedTab = 'Semua';
+                    _searchController.clear();
                   });
+                  _loadFoods(refresh: true);
                 },
-              );
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Reset Filter'),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification scrollInfo) {
+        if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent &&
+            _selectedTab != 'Favorit' &&
+            _hasMoreData &&
+            !_isLoading) {
+          _loadFoods();
+        }
+        return false;
+      },
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        itemCount: filteredFoods.length + (_isLoading ? 1 : 0),
+        separatorBuilder: (context, index) => const SizedBox(height: 10),
+        itemBuilder: (context, index) {
+          if (index == filteredFoods.length) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+
+          final food = filteredFoods[index];
+          return FoodItem(
+            food: food,
+            onTap: () {
+              setState(() {
+                _selectedFood = food;
+              });
             },
+            onFavoriteToggle: () => _toggleFavorite(food),
           );
+        },
+      ),
+    );
   }
 
   Widget _buildFoodDetails() {
@@ -350,39 +671,86 @@ class _FoodScreenState extends State<FoodScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      food.name,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Text(
+                        food.name,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedFood = null;
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          shape: BoxShape.circle,
+                    Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => _toggleFavorite(food),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: food.isFavorite
+                                  ? Colors.red.shade50
+                                  : Colors.grey.shade100,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              food.isFavorite
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              size: 20,
+                              color: food.isFavorite
+                                  ? Colors.red.shade400
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
                         ),
-                        child: const Icon(
-                          Icons.close,
-                          size: 16,
-                          color: Colors.black87,
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedFood = null;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade200,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.black87,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${food.calories} kcal per ${food.weight?.toString() ?? "100"}g',
+                  '${food.calories.toStringAsFixed(0)} kcal per ${food.weight?.toStringAsFixed(0) ?? "100"}g',
                   style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
                 ),
+                if (food.category != null) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      food.category!.name,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 const Text(
                   'Informasi Nutrisi (per 100g)',
@@ -392,13 +760,14 @@ class _FoodScreenState extends State<FoodScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildNutrientValue('Kalori', '${food.calories} kcal'),
+                    _buildNutrientValue(
+                        'Kalori', '${food.calories.toStringAsFixed(0)} kcal'),
                   ],
                 ),
                 const SizedBox(height: 12),
                 NutrientBar(
                   label: 'Karbohidrat',
-                  value: food.nutrients?['Karbohidrat'] ?? 0,
+                  value: food.carbs,
                   unit: 'g',
                   color: AppColors.primary,
                   maxValue: 30,
@@ -406,7 +775,7 @@ class _FoodScreenState extends State<FoodScreen> {
                 const SizedBox(height: 10),
                 NutrientBar(
                   label: 'Protein',
-                  value: food.nutrients?['Protein'] ?? 0,
+                  value: food.protein,
                   unit: 'g',
                   color: AppColors.secondary,
                   maxValue: 10,
@@ -414,18 +783,10 @@ class _FoodScreenState extends State<FoodScreen> {
                 const SizedBox(height: 10),
                 NutrientBar(
                   label: 'Lemak',
-                  value: food.nutrients?['Lemak'] ?? 0,
+                  value: food.fat,
                   unit: 'g',
                   color: Colors.orange,
                   maxValue: 10,
-                ),
-                const SizedBox(height: 10),
-                NutrientBar(
-                  label: 'Serat',
-                  value: food.nutrients?['Serat'] ?? 0,
-                  unit: 'g',
-                  color: Colors.purple,
-                  maxValue: 5,
                 ),
                 if (food.vitamins != null && food.vitamins!.isNotEmpty) ...[
                   const SizedBox(height: 24),
@@ -448,7 +809,7 @@ class _FoodScreenState extends State<FoodScreen> {
                         maxValue: 150,
                       ),
                     );
-                  }), // Fixed: Removed unnecessary toList()
+                  }),
                 ],
                 const SizedBox(height: 24),
                 if (food.description != null && food.description!.isNotEmpty)

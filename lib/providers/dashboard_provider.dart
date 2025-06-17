@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/dashboard_model.dart';
 import '../services/user_service.dart';
 import '../utils/http_exception.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -8,90 +9,76 @@ class DashboardProvider extends ChangeNotifier {
 
   bool _isLoading = false;
   String? _error;
-  Map<String, dynamic>? _dashboardData;
+  DashboardData? _dashboardData;
   String _timeRange = 'week'; // 'week' or 'month'
 
   // Getters
   bool get isLoading => _isLoading;
   String? get error => _error;
-  Map<String, dynamic>? get dashboardData => _dashboardData;
+  DashboardData? get dashboardData => _dashboardData;
   String get timeRange => _timeRange;
 
   // Calories data for the chart
   List<FlSpot> get caloriesSpots {
-    if (_dashboardData == null || 
-        _dashboardData!['caloriesTracker'] == null) {
+    if (_dashboardData == null || _dashboardData!.caloriesTracker.isEmpty) {
       return [];
     }
 
-    final List<dynamic> trackingData = _dashboardData!['caloriesTracker'];
-    
-    if (_timeRange == 'week') {
-      return List.generate(trackingData.length, (index) {
-        return FlSpot(
-          index.toDouble(), 
-          (trackingData[index]['calories'] as num).toDouble()
-        );
-      });
-    } else {
-      // For month view
-      return List.generate(trackingData.length, (index) {
-        return FlSpot(
-          index.toDouble(), 
-          (trackingData[index]['calories'] as num).toDouble()
-        );
-      });
-    }
+    final trackingData = _dashboardData!.caloriesTracker;
+
+    return List.generate(trackingData.length, (index) {
+      return FlSpot(index.toDouble(), trackingData[index].calories);
+    });
   }
 
   // User profile info
-  String get userName => _dashboardData?['user']?['name'] ?? 'User';
-  double get userWeight => (_dashboardData?['user']?['weight'] as num?)?.toDouble() ?? 0.0;
-  double get userHeight => (_dashboardData?['user']?['height'] as num?)?.toDouble() ?? 0.0;
-  double get userBmr => (_dashboardData?['user']?['bmr'] as num?)?.toDouble() ?? 0.0;
-  double get userTdee => (_dashboardData?['user']?['tdee'] as num?)?.toDouble() ?? 0.0;
+  String get userName => _dashboardData?.user.name ?? 'User';
+  double get userWeight => _dashboardData?.user.weight ?? 0.0;
+  double get userHeight => _dashboardData?.user.height ?? 0.0;
+  double get userBmr => _dashboardData?.user.bmr ?? 0.0;
+  double get userTdee => _dashboardData?.user.tdee ?? 0.0;
 
   // Calories info
-  double get caloriesConsumed => (_dashboardData?['calories']?['consumed'] as num?)?.toDouble() ?? 0.0;
-  double get caloriesBurned => (_dashboardData?['calories']?['burnedFromActivities'] as num?)?.toDouble() ?? 0.0;
-  double get caloriesBmr => (_dashboardData?['calories']?['bmr'] as num?)?.toDouble() ?? 0.0;
-  double get caloriesTdee => (_dashboardData?['calories']?['tdee'] as num?)?.toDouble() ?? 0.0;
-  double get caloriesNet => (_dashboardData?['calories']?['net'] as num?)?.toDouble() ?? 0.0;
-  double get caloriesTarget => (_dashboardData?['calories']?['target'] as num?)?.toDouble() ?? 0.0;
+  double get caloriesConsumed => _dashboardData?.calories.consumed ?? 0.0;
+  double get caloriesBurned =>
+      _dashboardData?.calories.burnedFromActivities ?? 0.0;
+  double get caloriesBmr => _dashboardData?.calories.bmr ?? 0.0;
+  double get caloriesTdee => _dashboardData?.calories.tdee ?? 0.0;
+  double get caloriesNet => _dashboardData?.calories.net ?? 0.0;
+  double get caloriesTarget => _dashboardData?.calories.target ?? 0.0;
 
   // Activities info
-  int get activitiesCount => (_dashboardData?['activities']?['count'] as num?)?.toInt() ?? 0;
-  int get activitiesTotalDuration => (_dashboardData?['activities']?['totalDuration'] as num?)?.toInt() ?? 0;
-  double get activitiesTotalCaloriesBurned => (_dashboardData?['activities']?['totalCaloriesBurned'] as num?)?.toDouble() ?? 0.0;
+  int get activitiesCount => _dashboardData?.activities.count ?? 0;
+  int get activitiesTotalDuration =>
+      _dashboardData?.activities.totalDuration ?? 0;
+  double get activitiesTotalCaloriesBurned =>
+      _dashboardData?.activities.totalCaloriesBurned ?? 0.0;
 
   // Weight goal info
-  double get weightGoalStartWeight => (_dashboardData?['weightGoal']?['startWeight'] as num?)?.toDouble() ?? 0.0;
-  double get weightGoalTargetWeight => (_dashboardData?['weightGoal']?['targetWeight'] as num?)?.toDouble() ?? 0.0;
-  String get weightGoalStartDate => _dashboardData?['weightGoal']?['startDate']?.toString() ?? '';
-  String get weightGoalTargetDate => _dashboardData?['weightGoal']?['targetDate']?.toString() ?? '';
+  double get weightGoalStartWeight =>
+      _dashboardData?.weightGoal?.startWeight ?? 0.0;
+  double get weightGoalTargetWeight =>
+      _dashboardData?.weightGoal?.targetWeight ?? 0.0;
+  String get weightGoalStartDate => _dashboardData?.weightGoal?.startDate ?? '';
+  String get weightGoalTargetDate =>
+      _dashboardData?.weightGoal?.targetDate ?? '';
 
   // BMI info
-  double get bmiValue => (_dashboardData?['latestBMI']?['bmi'] as num?)?.toDouble() ?? 0.0;
-  String get bmiStatus => _dashboardData?['latestBMI']?['status']?.toString() ?? 'UNKNOWN';
-  
+  double get bmiValue => _dashboardData?.latestBMI?.bmi ?? 0.0;
+  String get bmiStatus => _dashboardData?.latestBMI?.status ?? 'UNKNOWN';
+
   // Nutrition summary
-  Map<String, dynamic>? get nutritionSummary => _dashboardData?['latestBMI']?['nutritionSummary'];
-  
+  NutritionSummary? get nutritionSummary =>
+      _dashboardData?.latestBMI?.nutritionSummary;
+
   // Chart labels
   List<String> get chartLabels {
-    if (_dashboardData == null || 
-        _dashboardData!['caloriesTracker'] == null) {
+    if (_dashboardData == null || _dashboardData!.caloriesTracker.isEmpty) {
       return [];
     }
 
-    final List<dynamic> trackingData = _dashboardData!['caloriesTracker'];
-    
-    if (_timeRange == 'week') {
-      return trackingData.map<String>((item) => item['label'].toString()).toList();
-    } else {
-      // For month view
-      return trackingData.map<String>((item) => item['label'].toString()).toList();
-    }
+    final trackingData = _dashboardData!.caloriesTracker;
+    return trackingData.map((item) => item.label).toList();
   }
 
   // Load dashboard data
@@ -107,7 +94,8 @@ class DashboardProvider extends ChangeNotifier {
       );
 
       if (response?.success == true && response?.data != null) {
-        _dashboardData = response!.data;
+        _dashboardData =
+            DashboardData.fromJson(response!.data as Map<String, dynamic>);
         notifyListeners();
       } else {
         _error = response?.message ?? 'Failed to load dashboard data';

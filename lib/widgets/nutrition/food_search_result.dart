@@ -55,12 +55,27 @@ class FoodSearchResult extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    '${food.calories.toStringAsFixed(1)} cal | ${food.servingSize ?? '1'} ${food.servingUnit ?? 'serving'}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        '${food.calories.toStringAsFixed(0)} kkal',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (food.category != null) ...[
+                        const SizedBox(width: 8),
+                        Text(
+                          '• ${food.category!.name}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),

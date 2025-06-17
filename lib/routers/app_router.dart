@@ -65,7 +65,7 @@ class AppRouter {
           builder: (context, state) => const FoodScreen(),
         ),
         GoRoute(
-          path: '/ibm',
+          path: '/bmi',
           builder: (context, state) => const IBMScreen(),
         ),
       ],
