@@ -6,10 +6,16 @@ import 'package:gohealth/providers/auth_provider.dart';
 import 'package:gohealth/providers/profile_provider.dart';
 import 'package:gohealth/providers/dashboard_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:gohealth/firebase_options.dart';
+import 'package:gohealth/services/fcm_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  await FirebaseService().initNotification();
   await dotenv.load(fileName: ".env");
 
   // Initialize Supabase

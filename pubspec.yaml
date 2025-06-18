@@ -35,6 +35,9 @@ dependencies:
 
   # Supabase
   supabase_flutter: ^2.5.6
+  firebase_core: ^3.10.1
+  firebase_auth: ^5.4.1
+  firebase_messaging: ^15.1.1
 
   # Utils
   intl: ^0.20.2

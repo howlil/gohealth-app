@@ -58,109 +58,11 @@ class _DailyNutritionTrackerScreenState
   bool _isSearching = false;
   Timer? _debounce;
 
-  final List<Food> _foodDatabase = [
-    Food(
-      id: '1',
-      name: 'Apel',
-      calories: 52,
-      protein: 0.3,
-      carbs: 13.8,
-      fat: 0.2,
-      weight: 100,
-      nutrients: {
-        'Karbohidrat': 13.8,
-        'Protein': 0.3,
-        'Lemak': 0.2,
-        'Serat': 2.4,
-      },
-      vitamins: {},
-      imageUrl: null,
-      category: null,
-      isFavorite: false,
-      description:
-          'Buah apel mengandung serat yang tinggi dan dapat membantu menjaga kesehatan pencernaan.',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ),
-    Food(
-      id: '2',
-      name: 'Pisang',
-      calories: 89,
-      protein: 1.1,
-      carbs: 22.8,
-      fat: 0.3,
-      weight: 100,
-      nutrients: {
-        'Karbohidrat': 22.8,
-        'Protein': 1.1,
-        'Lemak': 0.3,
-        'Serat': 2.6,
-      },
-      vitamins: {},
-      imageUrl: null,
-      category: null,
-      isFavorite: false,
-      description:
-          'Pisang kaya akan potasium dan vitamin B6 yang membantu fungsi jantung dan sistem saraf.',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ),
-    Food(
-      id: '3',
-      name: 'Brokoli',
-      calories: 55,
-      protein: 2.8,
-      carbs: 11.2,
-      fat: 0.4,
-      weight: 100,
-      nutrients: {
-        'Karbohidrat': 11.2,
-        'Protein': 2.8,
-        'Lemak': 0.4,
-        'Serat': 2.6,
-      },
-      vitamins: {},
-      imageUrl: null,
-      category: null,
-      isFavorite: true,
-      description:
-          'Brokoli adalah sayuran yang kaya vitamin C, vitamin K dan serat.',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ),
-    Food(
-      id: '4',
-      name: 'Susu Rendah Lemak',
-      calories: 42,
-      protein: 3.5,
-      carbs: 5.0,
-      fat: 1.0,
-      weight: 100,
-      nutrients: {
-        'Karbohidrat': 5.0,
-        'Protein': 3.5,
-        'Lemak': 1.0,
-        'Serat': 0.0,
-      },
-      vitamins: {},
-      imageUrl: null,
-      category: null,
-      isFavorite: false,
-      description:
-          'Susu rendah lemak menyediakan kalsium dan protein tanpa lemak jenuh yang tinggi.',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
     _dateController.text = DateFormat('d MMMM yyyy').format(_selectedDate);
     _mealTimeController.text = _mealTypeLabels[_selectedMealType] ?? 'Sarapan';
-
-    // Tambahkan dummy data untuk testing
-    _addDummyDataForTesting();
 
     _loadMeals();
     _loadDailySummary();
@@ -191,23 +93,28 @@ class _DailyNutritionTrackerScreenState
 
       if (response != null && response.success && response.data != null) {
         final meals = response.data!['meals'] as List<Meal>;
-        debugPrint('Loaded ${meals.length} meals');
+        debugPrint('Loaded ${meals.length} meals from API');
+
+        setState(() {
+          _meals = meals; // Always update with API response
+        });
+
+        // Debug print meals
         for (var meal in meals) {
           debugPrint(
               'Meal: ${meal.food?.name} - ${meal.mealType} - ${meal.totalCalories} kcal');
         }
-
-        setState(() {
-          // Hanya update jika ada data dari API
-          if (meals.isNotEmpty) {
-            _meals = meals;
-          }
-        });
       } else {
-        debugPrint('No meals data from API, keeping existing data');
+        debugPrint('Failed to load meals or no data');
+        setState(() {
+          _meals = []; // Clear meals if API fails
+        });
       }
     } catch (e) {
       debugPrint('Error loading meals: $e');
+      setState(() {
+        _meals = []; // Clear meals on error
+      });
     } finally {
       setState(() {
         _isLoading = false;
@@ -230,18 +137,45 @@ class _DailyNutritionTrackerScreenState
             'Meals by type: ${response.data!.mealsByType.keys.toList()}');
 
         setState(() {
-          // Hanya update jika ada data yang valid
-          if (response.data!.totalCalories > 0 ||
-              response.data!.mealsByType.values
-                  .any((meals) => meals.isNotEmpty)) {
-            _dailySummary = response.data;
-          }
+          _dailySummary = response.data; // Always update with API response
         });
       } else {
-        debugPrint('No summary data from API, keeping existing data');
+        debugPrint('Failed to load daily summary or no data');
+        setState(() {
+          // Create empty summary if API fails
+          _dailySummary = DailyMealSummary(
+            date: dateStr,
+            totalCalories: 0,
+            totalProtein: 0,
+            totalFat: 0,
+            totalCarbs: 0,
+            mealsByType: {
+              'BREAKFAST': [],
+              'LUNCH': [],
+              'DINNER': [],
+              'SNACK': [],
+            },
+          );
+        });
       }
     } catch (e) {
       debugPrint('Error loading daily summary: $e');
+      setState(() {
+        // Create empty summary on error
+        _dailySummary = DailyMealSummary(
+          date: _formatDateToDDMMYYYY(_selectedDate),
+          totalCalories: 0,
+          totalProtein: 0,
+          totalFat: 0,
+          totalCarbs: 0,
+          mealsByType: {
+            'BREAKFAST': [],
+            'LUNCH': [],
+            'DINNER': [],
+            'SNACK': [],
+          },
+        );
+      });
     }
   }
 
@@ -355,14 +289,188 @@ class _DailyNutritionTrackerScreenState
     });
   }
 
-  void _selectFood(Food food) {
+  void _selectFood(Food food) async {
     setState(() {
       _searchController.text = food.name;
       _searchResults = [];
     });
 
-    // Tampilkan bottom sheet untuk input jumlah
-    _showAddFoodBottomSheet(food);
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Fetch complete food details
+      final response = await _mealService.getFoodById(food.id);
+
+      // Hide loading
+      if (mounted) Navigator.pop(context);
+
+      if (response != null && response.success && response.data != null) {
+        final completeFood = response.data!;
+        _showAddFoodBottomSheet(completeFood);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Gagal memuat detail makanan'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Hide loading
+      if (mounted) Navigator.pop(context);
+
+      debugPrint('Error fetching food details: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat detail makanan: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showAddFoodBottomSheet(Food food) {
+    _quantityController.text = '100';
+    _unitController.text = 'gram';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+              child: Container(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Tambah Makanan',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        food.name,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${food.calories} kkal per ${food.weight ?? 100}g',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: RoundedInputField(
+                              hintText: 'Jumlah',
+                              keyboardType: TextInputType.number,
+                              controller: _quantityController,
+                              onChanged: (value) {
+                                setModalState(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: RoundedInputField(
+                              hintText: 'Satuan',
+                              controller: _unitController,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      if (_quantityController.text.isNotEmpty)
+                        Text(
+                          'Total: ${((double.tryParse(_quantityController.text) ?? 0) / (food.weight ?? 100) * food.calories).toStringAsFixed(0)} kkal',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            final quantity =
+                                double.tryParse(_quantityController.text) ??
+                                    100;
+                            final unit = _unitController.text.isNotEmpty
+                                ? _unitController.text
+                                : 'gram';
+                            _addFoodEntry(food, quantity, unit);
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: const Text(
+                            'Tambahkan',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _addFoodEntry(Food food, double quantity, String unit) async {
@@ -408,18 +516,6 @@ class _DailyNutritionTrackerScreenState
           ),
         );
       }
-    }
-  }
-
-  Future<void> _deleteMeal(String mealId) async {
-    try {
-      final response = await _mealService.deleteMeal(mealId);
-      if (response != null && response.success) {
-        _loadMeals();
-        _loadDailySummary();
-      }
-    } catch (e) {
-      debugPrint('Error deleting meal: $e');
     }
   }
 
@@ -489,15 +585,24 @@ class _DailyNutritionTrackerScreenState
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
-                    : SingleChildScrollView(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          children: [
-                            _activeTab == 'Ringkasan Gizi'
-                                ? _buildNutritionSummary()
-                                : _buildTodaysFoodList(),
-                            const SizedBox(height: 50),
-                          ],
+                    : RefreshIndicator(
+                        onRefresh: () async {
+                          await Future.wait([
+                            _loadMeals(),
+                            _loadDailySummary(),
+                          ]);
+                        },
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Column(
+                            children: [
+                              _activeTab == 'Ringkasan Gizi'
+                                  ? _buildNutritionSummary()
+                                  : _buildTodaysFoodList(),
+                              const SizedBox(height: 50),
+                            ],
+                          ),
                         ),
                       ),
               ),
@@ -927,38 +1032,52 @@ class _DailyNutritionTrackerScreenState
               final meal = meals[index];
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            meal.food?.name ?? 'Unknown Food',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            '${meal.totalCalories.toStringAsFixed(0)} kkal • ${meal.quantity} ${meal.unit}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
+                child: InkWell(
+                  onTap: () => _showMealOptionsBottomSheet(meal),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.grey.shade200,
+                        width: 1,
                       ),
                     ),
-                    IconButton(
-                      icon: Icon(
-                        Icons.delete_outline,
-                        color: Colors.red.shade300,
-                        size: 20,
-                      ),
-                      onPressed: () => _deleteMeal(meal.id),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                meal.food?.name ?? 'Unknown Food',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${meal.totalCalories.toStringAsFixed(0)} kkal • ${meal.quantity} ${meal.unit}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.more_vert,
+                          color: Colors.grey.shade600,
+                          size: 20,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               );
             },
@@ -968,9 +1087,57 @@ class _DailyNutritionTrackerScreenState
     );
   }
 
-  void _showAddFoodBottomSheet(Food food) {
-    _quantityController.text = '100';
-    _unitController.text = 'gram';
+  void _showMealOptionsBottomSheet(Meal meal) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(top: 12, bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit, color: AppColors.primary),
+                title: const Text('Edit Makanan'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showEditMealBottomSheet(meal);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.delete, color: Colors.red.shade400),
+                title: const Text('Hapus Makanan'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDeleteConfirmation(meal);
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showEditMealBottomSheet(Meal meal) {
+    final editQuantityController =
+        TextEditingController(text: meal.quantity.toString());
+    final editUnitController = TextEditingController(text: meal.unit);
+    String editMealType = meal.mealType;
 
     showModalBottomSheet(
       context: context,
@@ -999,7 +1166,7 @@ class _DailyNutritionTrackerScreenState
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'Tambah Makanan',
+                            'Edit Makanan',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -1013,7 +1180,7 @@ class _DailyNutritionTrackerScreenState
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        food.name,
+                        meal.food?.name ?? 'Unknown Food',
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -1021,20 +1188,57 @@ class _DailyNutritionTrackerScreenState
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${food.calories} kkal per ${food.weight ?? 100}g',
+                        '${meal.food?.calories ?? 0} kkal per ${meal.food?.weight ?? 100}g',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey.shade600,
                         ),
                       ),
                       const SizedBox(height: 20),
+
+                      // Meal type selector
+                      const Text(
+                        'Waktu Makan',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButton<String>(
+                          value: editMealType,
+                          isExpanded: true,
+                          underline: const SizedBox(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setModalState(() {
+                                editMealType = value;
+                              });
+                            }
+                          },
+                          items: _mealTypeLabels.entries.map((entry) {
+                            return DropdownMenuItem(
+                              value: entry.key,
+                              child: Text(entry.value),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
                       Row(
                         children: [
                           Expanded(
                             child: RoundedInputField(
                               hintText: 'Jumlah',
                               keyboardType: TextInputType.number,
-                              controller: _quantityController,
+                              controller: editQuantityController,
                               onChanged: (value) {
                                 setModalState(() {});
                               },
@@ -1044,15 +1248,16 @@ class _DailyNutritionTrackerScreenState
                           Expanded(
                             child: RoundedInputField(
                               hintText: 'Satuan',
-                              controller: _unitController,
+                              controller: editUnitController,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      if (_quantityController.text.isNotEmpty)
+                      if (editQuantityController.text.isNotEmpty &&
+                          meal.food != null)
                         Text(
-                          'Total: ${((double.tryParse(_quantityController.text) ?? 0) / (food.weight ?? 100) * food.calories).toStringAsFixed(0)} kkal',
+                          'Total: ${((double.tryParse(editQuantityController.text) ?? 0) / (meal.food!.weight ?? 100) * meal.food!.calories).toStringAsFixed(0)} kkal',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -1064,15 +1269,17 @@ class _DailyNutritionTrackerScreenState
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () {
+                          onPressed: () async {
                             final quantity =
-                                double.tryParse(_quantityController.text) ??
-                                    100;
-                            final unit = _unitController.text.isNotEmpty
-                                ? _unitController.text
-                                : 'gram';
-                            _addFoodEntry(food, quantity, unit);
+                                double.tryParse(editQuantityController.text) ??
+                                    meal.quantity;
+                            final unit = editUnitController.text.isNotEmpty
+                                ? editUnitController.text
+                                : meal.unit;
+
                             Navigator.pop(context);
+                            await _updateMeal(
+                                meal.id, quantity, unit, editMealType);
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
@@ -1082,7 +1289,7 @@ class _DailyNutritionTrackerScreenState
                             ),
                           ),
                           child: const Text(
-                            'Tambahkan',
+                            'Simpan Perubahan',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -1101,77 +1308,133 @@ class _DailyNutritionTrackerScreenState
     );
   }
 
-  // Tambahkan method untuk dummy data
-  void _addDummyDataForTesting() {
-    // Dummy meals untuk testing
-    _meals = [
-      Meal(
-        id: 'dummy1',
-        userId: 'user1',
-        foodId: 'BUAH-001',
-        mealType: 'BREAKFAST',
-        date: _formatDateToDDMMYYYY(_selectedDate),
-        quantity: 150,
-        unit: 'gram',
-        totalCalories: 78,
-        totalProtein: 0.9,
-        totalFat: 0.3,
-        totalCarbs: 19.5,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        food: Food(
-          id: 'BUAH-001',
-          name: 'Apel',
-          calories: 52,
-          protein: 0.3,
-          carbs: 13.8,
-          fat: 0.2,
-          weight: 100,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      ),
-      Meal(
-        id: 'dummy2',
-        userId: 'user1',
-        foodId: 'DAGING-001',
-        mealType: 'LUNCH',
-        date: _formatDateToDDMMYYYY(_selectedDate),
-        quantity: 100,
-        unit: 'gram',
-        totalCalories: 165,
-        totalProtein: 31,
-        totalFat: 3.6,
-        totalCarbs: 0,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        food: Food(
-          id: 'DAGING-001',
-          name: 'Dada Ayam',
-          calories: 165,
-          protein: 31,
-          carbs: 0,
-          fat: 3.6,
-          weight: 100,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-      ),
-    ];
-
-    // Dummy daily summary
-    _dailySummary = DailyMealSummary(
-      date: _formatDateToDDMMYYYY(_selectedDate),
-      totalCalories: 243,
-      totalProtein: 31.9,
-      totalFat: 3.9,
-      totalCarbs: 19.5,
-      mealsByType: {
-        'BREAKFAST': [_meals[0]],
-        'LUNCH': [_meals[1]],
-        'DINNER': [],
-        'SNACK': [],
+  void _showDeleteConfirmation(Meal meal) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Hapus Makanan'),
+          content: Text(
+              'Apakah Anda yakin ingin menghapus ${meal.food?.name ?? "makanan ini"}?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _deleteMeal(meal.id);
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Hapus'),
+            ),
+          ],
+        );
       },
     );
+  }
+
+  Future<void> _updateMeal(
+      String mealId, double quantity, String unit, String mealType) async {
+    try {
+      final response = await _mealService.updateMeal(
+        mealId: mealId,
+        quantity: quantity,
+        unit: unit,
+        mealType: mealType,
+      );
+
+      if (response != null && response.success) {
+        // Reload data to get updated information
+        await Future.wait([
+          _loadMeals(),
+          _loadDailySummary(),
+        ]);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Makanan berhasil diperbarui'),
+              backgroundColor: AppColors.primary,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(10),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Gagal memperbarui makanan: ${response?.message ?? "Unknown error"}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating meal: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memperbarui makanan: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteMeal(String mealId) async {
+    try {
+      final response = await _mealService.deleteMeal(mealId);
+      if (response != null && response.success) {
+        // Reload both meals and daily summary to ensure consistency
+        await Future.wait([
+          _loadMeals(),
+          _loadDailySummary(),
+        ]);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Makanan berhasil dihapus'),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(10),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Gagal menghapus makanan: ${response?.message ?? "Unknown error"}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error deleting meal: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menghapus makanan: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

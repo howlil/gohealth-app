@@ -33,7 +33,7 @@ class _FoodScreenState extends State<FoodScreen> {
 
   String? _errorMessage;
 
-  int _currentPage = 0;
+  int _currentPage = 1;
   bool _hasMoreData = true;
   static const int _pageSize = 20;
 
@@ -80,7 +80,7 @@ class _FoodScreenState extends State<FoodScreen> {
   Future<void> _loadFoods({bool refresh = false}) async {
     if (refresh) {
       setState(() {
-        _currentPage = 0;
+        _currentPage = 1;
         _hasMoreData = true;
         _foods = [];
       });

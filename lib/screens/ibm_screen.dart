@@ -37,7 +37,7 @@ class _IBMScreenState extends State<IBMScreen>
 
   final BMIService _bmiService = BMIService();
   List<IBMHistory> _bmiHistory = [];
-  int _currentPage = 0;
+  int _currentPage = 1;
   static const int _pageSize = 10;
 
   // Nutrition summary data
@@ -53,7 +53,7 @@ class _IBMScreenState extends State<IBMScreen>
   Future<void> _loadBMIHistory({bool refresh = false}) async {
     if (refresh) {
       setState(() {
-        _currentPage = 0;
+        _currentPage = 1;
         _hasMoreData = true;
         _bmiHistory = [];
       });

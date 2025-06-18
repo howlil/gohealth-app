@@ -16,7 +16,7 @@ class MealService {
   Future<ApiResponse<Map<String, dynamic>>?> getFoods({
     String? search,
     String? category,
-    int page = 0,
+    int page = 1,
     int limit = 50,
   }) async {
     try {
@@ -109,6 +109,38 @@ class MealService {
     }
   }
 
+  // Get food by ID
+  Future<ApiResponse<Food>?> getFoodById(String foodId) async {
+    try {
+      final response = await _apiService.get(
+        '${ApiEndpoints.foods}/$foodId',
+        requiresAuth: true,
+      );
+
+      if (response['success'] == true) {
+        final food = Food.fromJson(response['data'] as Map<String, dynamic>);
+        return ApiResponse<Food>(
+          success: true,
+          message: response['message'] ?? 'Food retrieved successfully',
+          data: food,
+        );
+      } else {
+        return ApiResponse<Food>(
+          success: false,
+          message: response['message'] ?? 'Failed to get food',
+          data: null,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error getting food by ID: $e');
+      return ApiResponse<Food>(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+        data: null,
+      );
+    }
+  }
+
   // Get food autocomplete suggestions
   Future<ApiResponse<List<Food>>?> getFoodSuggestions({
     required String query,
@@ -131,12 +163,13 @@ class MealService {
             id: foodData['id'] as String,
             name: foodData['name'] as String,
             calories: (foodData['calory'] as num).toDouble(),
-            protein: 0, // These will be fetched when food is selected
-            carbs: 0,
-            fat: 0,
+            protein: (foodData['protein'] as num?)?.toDouble() ?? 0,
+            carbs: (foodData['carbohydrate'] as num?)?.toDouble() ?? 0,
+            fat: (foodData['fat'] as num?)?.toDouble() ?? 0,
+            weight: (foodData['weight'] as num?)?.toDouble() ?? 100,
             category: foodData['category'] != null
                 ? FoodCategory(
-                    id: '',
+                    id: foodData['category']['id'] as String? ?? '',
                     name: foodData['category']['name'] as String,
                     slug: foodData['category']['slug'] as String,
                     description: '',
@@ -175,7 +208,7 @@ class MealService {
 
   // Get favorite foods
   Future<ApiResponse<Map<String, dynamic>>?> getFavoriteFoods({
-    int page = 0,
+    int page = 1,
     int limit = 20,
   }) async {
     try {
@@ -286,7 +319,7 @@ class MealService {
   Future<ApiResponse<Map<String, dynamic>>?> getMeals({
     String? date,
     String? mealType,
-    int page = 0,
+    int page = 1,
     int limit = 10,
   }) async {
     try {
