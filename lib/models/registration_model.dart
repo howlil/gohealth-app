@@ -29,7 +29,7 @@ class RegistrationRequest {
 class RegistrationResponse {
   final bool success;
   final String message;
-  final RegistrationData data;
+  final RegistrationUser data;
 
   RegistrationResponse({
     required this.success,
@@ -42,25 +42,7 @@ class RegistrationResponse {
     return RegistrationResponse(
       success: json['success'] as bool,
       message: json['message'] as String,
-      data: RegistrationData.fromJson(json['data'] as Map<String, dynamic>),
-    );
-  }
-}
-
-class RegistrationData {
-  final String token;
-  final RegistrationUser user;
-
-  RegistrationData({
-    required this.token,
-    required this.user,
-  });
-
-  factory RegistrationData.fromJson(Map<String, dynamic> json) {
-    debugPrint('Parsing RegistrationData: $json');
-    return RegistrationData(
-      token: json['token'] as String,
-      user: RegistrationUser.fromJson(json['user'] as Map<String, dynamic>),
+      data: RegistrationUser.fromJson(json['data'] as Map<String, dynamic>),
     );
   }
 }
@@ -69,19 +51,25 @@ class RegistrationUser {
   final String id;
   final String name;
   final String email;
+  final int? age;
+  final String? gender;
 
   RegistrationUser({
     required this.id,
     required this.name,
     required this.email,
+    this.age,
+    this.gender,
   });
 
   factory RegistrationUser.fromJson(Map<String, dynamic> json) {
     debugPrint('Parsing RegistrationUser: $json');
     return RegistrationUser(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      age: json['age'] != null ? int.tryParse(json['age'].toString()) : null,
+      gender: json['gender']?.toString(),
     );
   }
 
@@ -90,6 +78,8 @@ class RegistrationUser {
       'id': id,
       'name': name,
       'email': email,
+      if (age != null) 'age': age,
+      if (gender != null) 'gender': gender,
     };
   }
 }

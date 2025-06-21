@@ -29,4 +29,9 @@ class ApiEndpoints {
   static const String foodCategories = '$meals/foods/categories';
   static const String foodAutocomplete = '$meals/foods/autocomplete';
   static const String favorites = '$meals/favorites';
+
+  // Notification endpoints
+  static const String notifications = '/api/notifications';
+  static const String notificationsUnreadCount = '$notifications/unread-count';
+  static const String notificationsReadAll = '$notifications/read-all';
 }

@@ -18,10 +18,8 @@ class IBMScreen extends StatefulWidget {
 
 class _IBMScreenState extends State<IBMScreen>
     with SingleTickerProviderStateMixin {
-  final TextEditingController _heightController =
-      TextEditingController(text: '170');
-  final TextEditingController _weightController =
-      TextEditingController(text: '55');
+  final TextEditingController _heightController = TextEditingController();
+  final TextEditingController _weightController = TextEditingController();
 
   double _bmi = 0.0;
   String _category = '';
@@ -125,13 +123,44 @@ class _IBMScreenState extends State<IBMScreen>
   }
 
   void _calculateBMI() async {
-    final height = double.tryParse(_heightController.text) ?? 0;
-    final weight = double.tryParse(_weightController.text) ?? 0;
-
-    if (height <= 0 || weight <= 0) {
+    // Validasi input tidak kosong
+    if (_heightController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Mohon masukkan tinggi dan berat yang valid'),
+          content: Text('Mohon masukkan tinggi badan'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_weightController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mohon masukkan berat badan'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final height = double.tryParse(_heightController.text);
+    final weight = double.tryParse(_weightController.text);
+
+    if (height == null || height <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tinggi badan harus berupa angka yang valid (cm)'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (weight == null || weight <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Berat badan harus berupa angka yang valid (kg)'),
           backgroundColor: Colors.red,
         ),
       );

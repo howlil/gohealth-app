@@ -174,6 +174,49 @@ class ApiService {
     }
   }
 
+  // Perform PATCH request with token refresh
+  Future<Map<String, dynamic>> patch(
+    String endpoint, {
+    required Map<String, dynamic> body,
+    bool requiresAuth = true,
+  }) async {
+    try {
+      var headers = await getHeaders();
+      final url = Uri.parse('$_baseUrl$endpoint');
+      logger.d("PATCH Request: $url");
+      logger.d("PATCH Body: $body");
+
+      var request = http.Request('PATCH', url);
+      request.headers.addAll(headers);
+      request.body = jsonEncode(body);
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      // Handle token refresh if needed
+      if (response.statusCode == 401 && requiresAuth) {
+        final refreshed = await _refreshToken();
+        if (refreshed) {
+          headers = await getHeaders();
+          request = http.Request('PATCH', url);
+          request.headers.addAll(headers);
+          request.body = jsonEncode(body);
+          streamedResponse = await request.send();
+          response = await http.Response.fromStream(streamedResponse);
+          logger.d("Retry Response Status: ${response.statusCode}");
+        }
+      }
+
+      logger.d("Response Status: ${response.statusCode}");
+      logger.d(
+          "Response Body: ${response.body.substring(0, response.body.length > 100 ? 100 : response.body.length)}...");
+      return _handleResponse(response);
+    } catch (e) {
+      logger.e("PATCH Error: $e");
+      return {"success": false, "message": "Network error occurred: $e"};
+    }
+  }
+
   // Perform DELETE request with token refresh
   Future<Map<String, dynamic>> delete(
     String endpoint, {
@@ -187,16 +230,16 @@ class ApiService {
       if (body != null) {
         logger.d("DELETE Body: $body");
       }
-      
+
       var request = http.Request('DELETE', url);
       request.headers.addAll(headers);
       if (body != null) {
         request.body = jsonEncode(body);
       }
-      
+
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
-      
+
       // Handle token refresh if needed
       if (response.statusCode == 401 && requiresAuth) {
         final refreshed = await _refreshToken();
@@ -212,7 +255,7 @@ class ApiService {
           logger.d("Retry Response Status: ${response.statusCode}");
         }
       }
-      
+
       logger.d("Response Status: ${response.statusCode}");
       logger.d(
           "Response Body: ${response.body.substring(0, response.body.length > 100 ? 100 : response.body.length)}...");
@@ -228,7 +271,11 @@ class ApiService {
     try {
       final data = jsonDecode(response.body);
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return {"success": true, "data": data['data'], "message": data['message']};
+        return {
+          "success": true,
+          "data": data['data'],
+          "message": data['message']
+        };
       } else {
         String errorMessage = data["message"] ?? "Unknown error occurred";
         return {

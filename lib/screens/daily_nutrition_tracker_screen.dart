@@ -29,12 +29,8 @@ class _DailyNutritionTrackerScreenState
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _mealTimeController = TextEditingController();
-  final TextEditingController _quantityController = TextEditingController(
-    text: '100',
-  );
-  final TextEditingController _unitController = TextEditingController(
-    text: 'gram',
-  );
+  final TextEditingController _quantityController = TextEditingController();
+  final TextEditingController _unitController = TextEditingController();
 
   final MealService _mealService = MealService();
 
@@ -341,8 +337,8 @@ class _DailyNutritionTrackerScreenState
   }
 
   void _showAddFoodBottomSheet(Food food) {
-    _quantityController.text = '100';
-    _unitController.text = 'gram';
+    _quantityController.clear();
+    _unitController.clear();
 
     showModalBottomSheet(
       context: context,
@@ -437,12 +433,41 @@ class _DailyNutritionTrackerScreenState
                         height: 50,
                         child: ElevatedButton(
                           onPressed: () {
+                            // Validasi input
+                            if (_quantityController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Mohon masukkan jumlah porsi'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (_unitController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Mohon masukkan satuan'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
                             final quantity =
-                                double.tryParse(_quantityController.text) ??
-                                    100;
-                            final unit = _unitController.text.isNotEmpty
-                                ? _unitController.text
-                                : 'gram';
+                                double.tryParse(_quantityController.text);
+                            if (quantity == null || quantity <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Jumlah porsi harus berupa angka yang valid'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            final unit = _unitController.text.trim();
                             _addFoodEntry(food, quantity, unit);
                             Navigator.pop(context);
                           },
@@ -483,14 +508,14 @@ class _DailyNutritionTrackerScreenState
         date: _formatDateToDDMMYYYY(_selectedDate),
       );
 
-      if (response != null && response.success) {
-        setState(() {
-          _searchController.clear();
-        });
-        _loadMeals();
-        _loadDailySummary();
+      if (mounted) {
+        if (response != null && response.success) {
+          setState(() {
+            _searchController.clear();
+          });
+          _loadMeals();
+          _loadDailySummary();
 
-        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -504,19 +529,126 @@ class _DailyNutritionTrackerScreenState
               margin: const EdgeInsets.all(10),
             ),
           );
+        } else if (response != null && !response.success) {
+          // Tampilkan error message dari server
+          _showErrorDialog(
+            'Gagal Menambahkan Makanan',
+            response.message ?? 'Terjadi kesalahan yang tidak diketahui',
+          );
+        } else {
+          // Response null
+          _showErrorDialog(
+            'Gagal Menambahkan Makanan',
+            'Tidak dapat terhubung ke server. Silakan coba lagi.',
+          );
         }
       }
     } catch (e) {
       debugPrint('Error adding meal: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menambahkan makanan: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        _showErrorDialog(
+          'Gagal Menambahkan Makanan',
+          'Terjadi kesalahan jaringan. Silakan coba lagi.',
         );
       }
     }
+  }
+
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: Colors.red[600],
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              // Jika error berkaitan dengan quantity, berikan panduan
+              if (message.toLowerCase().contains('quantity') ||
+                  message.toLowerCase().contains('servings')) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.blue[600],
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Panduan Porsi',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        '• Porsi minimum: 0.1 (10 gram)\n'
+                        '• Porsi maksimum: 20 (2000 gram)\n'
+                        '• Contoh: 1.5 untuk 150 gram',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+              ),
+              child: const Text(
+                'OK',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -981,7 +1113,7 @@ class _DailyNutritionTrackerScreenState
             DateFormat('EEEE, d MMMM yyyy').format(_selectedDate),
             style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // Group meals by type
           ..._mealTypeLabels.entries.map((entry) {
@@ -1003,87 +1135,98 @@ class _DailyNutritionTrackerScreenState
     required String title,
     required List<Meal> meals,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 12),
-        if (meals.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              'Belum ada makanan yang dicatat',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-                fontStyle: FontStyle.italic,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          if (meals.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: Colors.grey.shade200,
+                  width: 1,
+                ),
               ),
-            ),
-          )
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: meals.length,
-            itemBuilder: (context, index) {
-              final meal = meals[index];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: InkWell(
-                  onTap: () => _showMealOptionsBottomSheet(meal),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.grey.shade200,
-                        width: 1,
+              child: Text(
+                'Belum ada makanan yang dicatat',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: meals.length,
+              itemBuilder: (context, index) {
+                final meal = meals[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: () => _showMealOptionsBottomSheet(meal),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.grey.shade200,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  meal.food?.name ?? 'Unknown Food',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${meal.totalCalories.toStringAsFixed(0)} kkal • ${meal.quantity} ${meal.unit}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.more_vert,
+                            color: Colors.grey.shade600,
+                            size: 20,
+                          ),
+                        ],
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                meal.food?.name ?? 'Unknown Food',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${meal.totalCalories.toStringAsFixed(0)} kkal • ${meal.quantity} ${meal.unit}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(
-                          Icons.more_vert,
-                          color: Colors.grey.shade600,
-                          size: 20,
-                        ),
-                      ],
-                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        const SizedBox(height: 16),
-      ],
+                );
+              },
+            ),
+        ],
+      ),
     );
   }
 
@@ -1270,12 +1413,41 @@ class _DailyNutritionTrackerScreenState
                         height: 50,
                         child: ElevatedButton(
                           onPressed: () async {
+                            // Validasi input
+                            if (editQuantityController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Mohon masukkan jumlah porsi'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (editUnitController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Mohon masukkan satuan'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
                             final quantity =
-                                double.tryParse(editQuantityController.text) ??
-                                    meal.quantity;
-                            final unit = editUnitController.text.isNotEmpty
-                                ? editUnitController.text
-                                : meal.unit;
+                                double.tryParse(editQuantityController.text);
+                            if (quantity == null || quantity <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Jumlah porsi harus berupa angka yang valid'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              return;
+                            }
+
+                            final unit = editUnitController.text.trim();
 
                             Navigator.pop(context);
                             await _updateMeal(
@@ -1347,14 +1519,14 @@ class _DailyNutritionTrackerScreenState
         mealType: mealType,
       );
 
-      if (response != null && response.success) {
-        // Reload data to get updated information
-        await Future.wait([
-          _loadMeals(),
-          _loadDailySummary(),
-        ]);
+      if (mounted) {
+        if (response != null && response.success) {
+          // Reload data to get updated information
+          await Future.wait([
+            _loadMeals(),
+            _loadDailySummary(),
+          ]);
 
-        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Makanan berhasil diperbarui'),
@@ -1366,26 +1538,26 @@ class _DailyNutritionTrackerScreenState
               margin: const EdgeInsets.all(10),
             ),
           );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  'Gagal memperbarui makanan: ${response?.message ?? "Unknown error"}'),
-              backgroundColor: Colors.red,
-            ),
+        } else if (response != null && !response.success) {
+          // Tampilkan error message dari server
+          _showErrorDialog(
+            'Gagal Memperbarui Makanan',
+            response.message ?? 'Terjadi kesalahan yang tidak diketahui',
+          );
+        } else {
+          // Response null
+          _showErrorDialog(
+            'Gagal Memperbarui Makanan',
+            'Tidak dapat terhubung ke server. Silakan coba lagi.',
           );
         }
       }
     } catch (e) {
       debugPrint('Error updating meal: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memperbarui makanan: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        _showErrorDialog(
+          'Gagal Memperbarui Makanan',
+          'Terjadi kesalahan jaringan. Silakan coba lagi.',
         );
       }
     }
@@ -1394,14 +1566,15 @@ class _DailyNutritionTrackerScreenState
   Future<void> _deleteMeal(String mealId) async {
     try {
       final response = await _mealService.deleteMeal(mealId);
-      if (response != null && response.success) {
-        // Reload both meals and daily summary to ensure consistency
-        await Future.wait([
-          _loadMeals(),
-          _loadDailySummary(),
-        ]);
 
-        if (mounted) {
+      if (mounted) {
+        if (response != null && response.success) {
+          // Reload both meals and daily summary to ensure consistency
+          await Future.wait([
+            _loadMeals(),
+            _loadDailySummary(),
+          ]);
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Makanan berhasil dihapus'),
@@ -1413,26 +1586,26 @@ class _DailyNutritionTrackerScreenState
               margin: const EdgeInsets.all(10),
             ),
           );
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  'Gagal menghapus makanan: ${response?.message ?? "Unknown error"}'),
-              backgroundColor: Colors.red,
-            ),
+        } else if (response != null && !response.success) {
+          // Tampilkan error message dari server
+          _showErrorDialog(
+            'Gagal Menghapus Makanan',
+            response.message ?? 'Terjadi kesalahan yang tidak diketahui',
+          );
+        } else {
+          // Response null
+          _showErrorDialog(
+            'Gagal Menghapus Makanan',
+            'Tidak dapat terhubung ke server. Silakan coba lagi.',
           );
         }
       }
     } catch (e) {
       debugPrint('Error deleting meal: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menghapus makanan: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        _showErrorDialog(
+          'Gagal Menghapus Makanan',
+          'Terjadi kesalahan jaringan. Silakan coba lagi.',
         );
       }
     }

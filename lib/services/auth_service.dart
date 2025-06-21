@@ -33,10 +33,10 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
-        
+
         if (responseData['success'] == true && responseData['data'] != null) {
           final authModel = AuthModel.fromJson(responseData['data']);
-          
+
           // Save auth data to storage
           await StorageUtil.setAccessToken(authModel.token);
           await StorageUtil.setRefreshToken(authModel.refreshToken);
@@ -47,11 +47,11 @@ class AuthService {
             'profileImage': authModel.profileImage,
           });
           await StorageUtil.setLoggedIn(true);
-          
+
           return authModel;
         }
       }
-      
+
       // Handle error response
       final errorMessage = response.statusCode == 200
           ? 'Login failed: ${response.body}'
@@ -65,10 +65,12 @@ class AuthService {
   }
 
   // Register new account
-  Future<AuthModel?> register(String name, String email, String password) async {
+  Future<AuthModel?> register(
+      String name, String email, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/register'),
+        Uri.parse(
+            '$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/register'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -82,25 +84,61 @@ class AuthService {
 
       if (response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
-        
+
         if (responseData['success'] == true && responseData['data'] != null) {
-          final authModel = AuthModel.fromJson(responseData['data']);
-          
-          // Save auth data to storage
-          await StorageUtil.setAccessToken(authModel.token);
-          await StorageUtil.setRefreshToken(authModel.refreshToken);
-          await StorageUtil.setUserData({
-            'id': authModel.id,
-            'name': authModel.name,
-            'email': authModel.email,
-            'profileImage': authModel.profileImage,
-          });
-          await StorageUtil.setLoggedIn(true);
-          
-          return authModel;
+          final userData = responseData['data'];
+
+          // After successful registration, automatically login to get tokens
+          debugPrint('Registration successful, now logging in...');
+          final authModel = await login(email, password);
+
+          if (authModel != null) {
+            return authModel;
+          } else {
+            // If auto-login fails, create AuthModel with empty tokens for now
+            // User will need to login manually
+            debugPrint(
+                'Auto-login after registration failed, creating temporary auth model');
+
+            final tempAuthModel = AuthModel(
+              id: userData['id']?.toString() ?? '',
+              name: userData['name']?.toString() ?? '',
+              email: userData['email']?.toString() ?? '',
+              profileImage: userData['profileImage']?.toString(),
+              token: '', // Temporary empty token
+              refreshToken: '', // Temporary empty token
+              age: userData['age'] as int?,
+              gender: userData['gender']?.toString(),
+              height: userData['height'] != null
+                  ? (userData['height'] as num).toDouble()
+                  : null,
+              weight: userData['weight'] != null
+                  ? (userData['weight'] as num).toDouble()
+                  : null,
+              activityLevel: userData['activityLevel']?.toString(),
+              createdAt: userData['createdAt'] != null
+                  ? DateTime.tryParse(userData['createdAt'].toString())
+                  : null,
+              updatedAt: userData['updatedAt'] != null
+                  ? DateTime.tryParse(userData['updatedAt'].toString())
+                  : null,
+            );
+
+            // Save minimal user data to storage
+            await StorageUtil.setUserData({
+              'id': tempAuthModel.id,
+              'name': tempAuthModel.name,
+              'email': tempAuthModel.email,
+              'profileImage': tempAuthModel.profileImage,
+            });
+            // Don't set as logged in since we don't have valid tokens
+            await StorageUtil.setLoggedIn(false);
+
+            return tempAuthModel;
+          }
         }
       }
-      
+
       // Handle error response
       final errorMessage = response.statusCode == 201
           ? 'Registration failed: ${response.body}'
@@ -117,12 +155,13 @@ class AuthService {
   Future<bool> logout() async {
     try {
       final token = await StorageUtil.getAccessToken();
-      
+
       if (token != null) {
         // Call logout API endpoint if available
         try {
           await http.post(
-            Uri.parse('$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/logout'),
+            Uri.parse(
+                '$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/logout'),
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
@@ -134,11 +173,11 @@ class AuthService {
           debugPrint('Logout API error: $e');
         }
       }
-      
+
       // Clear local auth data
       await StorageUtil.clearAuthData();
       await StorageUtil.setLoggedIn(false);
-      
+
       return true;
     } catch (e) {
       debugPrint('Logout error: $e');
@@ -150,7 +189,8 @@ class AuthService {
   Future<String?> refreshToken(String refreshToken) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/refresh'),
+        Uri.parse(
+            '$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/refresh'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -162,22 +202,23 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
-        
+
         if (responseData['success'] == true && responseData['data'] != null) {
           final newAccessToken = responseData['data']['accessToken'];
           final newRefreshToken = responseData['data']['refreshToken'];
-          
+
           // Save new tokens to storage
           await StorageUtil.setAccessToken(newAccessToken);
           if (newRefreshToken != null) {
             await StorageUtil.setRefreshToken(newRefreshToken);
           }
-          
+
           return newAccessToken;
         }
       }
-      
-      debugPrint('Token refresh failed: ${response.statusCode} ${response.reasonPhrase}');
+
+      debugPrint(
+          'Token refresh failed: ${response.statusCode} ${response.reasonPhrase}');
       return null;
     } catch (e) {
       debugPrint('Token refresh error: $e');
@@ -189,11 +230,11 @@ class AuthService {
   Future<bool> isAuthenticated() async {
     final token = await StorageUtil.getAccessToken();
     final isLoggedIn = await StorageUtil.isLoggedIn();
-    
+
     if (token == null || !isLoggedIn) {
       return false;
     }
-    
+
     // Check if token is expired
     if (StorageUtil.isTokenExpired(token)) {
       // Try to refresh token
@@ -201,11 +242,11 @@ class AuthService {
       if (refreshToken == null) {
         return false;
       }
-      
+
       final newToken = await this.refreshToken(refreshToken);
       return newToken != null;
     }
-    
+
     return true;
   }
 
@@ -218,7 +259,8 @@ class AuthService {
   Future<bool> requestPasswordReset(String email) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/forgot-password'),
+        Uri.parse(
+            '$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/forgot-password'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -239,7 +281,8 @@ class AuthService {
   Future<bool> resetPassword(String token, String password) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/reset-password'),
+        Uri.parse(
+            '$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/reset-password'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',

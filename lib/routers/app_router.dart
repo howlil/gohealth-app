@@ -10,6 +10,7 @@ import '../screens/food_screen.dart';
 import '../screens/ibm_screen.dart';
 import '../screens/daily_nutrition_tracker_screen.dart';
 import '../screens/registration_screen.dart';
+import '../screens/notifications_screen.dart';
 
 class AppRouter {
   static GoRouter createRouter(AuthProvider authProvider) {
@@ -17,16 +18,22 @@ class AppRouter {
       initialLocation: '/',
       redirect: (context, state) {
         final isLoggedIn = authProvider.isLoggedIn;
+        final isLoading = authProvider.isLoading;
         final isGoingToLogin = state.matchedLocation == '/login';
         final isGoingToRegister = state.matchedLocation == '/register';
         final isGoingToSplash = state.matchedLocation == '/';
 
-        // Don't redirect if going to splash screen
-        if (isGoingToSplash) {
-          return null;
+        // Hanya tampilkan splash screen saat sedang loading initial auth check
+        if (isGoingToSplash && isLoading) {
+          return null; // Allow splash screen saat loading
         }
 
-        // Handle auth redirects
+        // Jika sudah selesai loading dan masih di splash, redirect sesuai auth status
+        if (isGoingToSplash && !isLoading) {
+          return isLoggedIn ? '/home' : '/login';
+        }
+
+        // Handle auth redirects untuk route lainnya
         if (!isLoggedIn && !isGoingToLogin && !isGoingToRegister) {
           return '/login';
         }
@@ -38,15 +45,15 @@ class AppRouter {
       routes: [
         GoRoute(
           path: '/',
-          builder: (context, state) => const SplashScreen() as Widget,
+          builder: (context, state) => const SplashScreen(),
         ),
         GoRoute(
           path: '/login',
-          builder: (context, state) => const LoginScreen() as Widget,
+          builder: (context, state) => const LoginScreen(),
         ),
         GoRoute(
           path: '/register',
-          builder: (context, state) => const RegistrationScreen() as Widget,
+          builder: (context, state) => const RegistrationScreen(),
         ),
         GoRoute(
           path: '/home',
@@ -58,7 +65,7 @@ class AppRouter {
         ),
         GoRoute(
           path: '/profile',
-          builder: (context, state) => const ProfileScreen() as Widget,
+          builder: (context, state) => const ProfileScreen(),
         ),
         GoRoute(
           path: '/food',
@@ -67,6 +74,10 @@ class AppRouter {
         GoRoute(
           path: '/bmi',
           builder: (context, state) => const IBMScreen(),
+        ),
+        GoRoute(
+          path: '/notifications',
+          builder: (context, state) => const NotificationsScreen(),
         ),
       ],
     );

@@ -2,9 +2,6 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -98,34 +95,8 @@ class _SplashScreenState extends State<SplashScreen>
       );
     }
 
-    // Start animation and navigate after completion
-    _controller.forward().then((_) {
-      _navigateAfterSplash();
-    });
-  }
-
-  // Navigation logic based on authentication state
-  void _navigateAfterSplash() {
-    if (!mounted) return;
-
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
-
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-      // Prevent navigation if already navigating
-      if (Navigator.of(context).userGestureInProgress) {
-        Future.delayed(const Duration(milliseconds: 100), _navigateAfterSplash);
-        return;
-      }
-
-      // Check if user is already logged in
-      if (authProvider.isLoggedIn) {
-        context.go('/home');
-      } else {
-        context.go('/login');
-      }
-    });
+    // Start animation - router akan handle navigation
+    _controller.forward();
   }
 
   @override

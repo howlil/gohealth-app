@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,7 @@ import '../providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import '../widgets/profile/profile_avatar.dart';
 import '../widgets/profile/glass_container.dart';
+import '../widgets/navigations/responsive_layout.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -35,10 +37,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
 
     // Initialize controllers with default values
-    _nameController = TextEditingController(text: '');
-    _ageController = TextEditingController(text: '');
-    _heightController = TextEditingController(text: '');
-    _weightController = TextEditingController(text: '');
+    _nameController = TextEditingController();
+    _ageController = TextEditingController();
+    _heightController = TextEditingController();
+    _weightController = TextEditingController();
 
     // Load profile data
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -227,29 +229,122 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickAndUploadImage() async {
     try {
-      final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery, 
-        imageQuality: 80,
+      // Show source selection dialog
+      final ImageSource? source = await showDialog<ImageSource>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Pilih Sumber Gambar'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.camera_alt),
+                  title: const Text('Kamera'),
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library),
+                  title: const Text('Galeri'),
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                ),
+              ],
+            ),
+          );
+        },
       );
-      
+
+      if (source == null) return;
+
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        imageQuality: 80,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      );
+
       if (image == null) return;
-      
-      final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+
+      // Validate file size (max 5MB)
+      final File imageFile = File(image.path);
+      final int fileSizeInBytes = await imageFile.length();
+      final double fileSizeInMB = fileSizeInBytes / (1024 * 1024);
+
+      if (fileSizeInMB > 5) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ukuran file terlalu besar. Maksimal 5MB.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Text('Mengupload foto profil...'),
+              ],
+            ),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 10),
+          ),
+        );
+      }
+
+      final profileProvider =
+          Provider.of<ProfileProvider>(context, listen: false);
       final success = await profileProvider.updateProfilePhoto(image);
-      
+
+      // Hide loading snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+
       if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('Foto profil berhasil diperbarui'),
               backgroundColor: AppColors.primary,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(10),
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Gagal memperbarui foto profil: ${profileProvider.error}'),
+              content: Text(
+                'Gagal memperbarui foto profil: ${profileProvider.error ?? "Error tidak diketahui"}',
+              ),
               backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(10),
+              action: SnackBarAction(
+                label: 'Coba Lagi',
+                textColor: Colors.white,
+                onPressed: () => _pickAndUploadImage(),
+              ),
             ),
           );
         }
@@ -257,10 +352,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       debugPrint('Error picking/uploading image: $e');
       if (mounted) {
+        // Hide any existing snackbar
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Text('Error: ${e.toString()}'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(10),
+            action: SnackBarAction(
+              label: 'Coba Lagi',
+              textColor: Colors.white,
+              onPressed: () => _pickAndUploadImage(),
+            ),
           ),
         );
       }
@@ -310,138 +418,326 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 )
               : SingleChildScrollView(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Column(
-                      children: [
-                        // Profile header
-                        _buildProfileHeader(),
+                    padding: EdgeInsets.symmetric(
+                      horizontal:
+                          ResponsiveLayout.isDesktop(context) ? 0 : 16.0,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: ResponsiveLayout.isDesktop(context)
+                              ? 800
+                              : double.infinity,
+                        ),
+                        child: Column(
+                          children: [
+                            // Profile header
+                            _buildProfileHeader(),
 
-                        const SizedBox(height: 12),
+                            const SizedBox(height: 12),
 
-                        // Personal information section
-                        GlassContainer(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionTitle('Informasi Pribadi'),
-                              const SizedBox(height: 12),
-                              _buildFormField(
-                                  'Nama', _nameController, TextInputType.text),
-                              _buildFormField(
-                                  'Usia', _ageController, TextInputType.number),
-                              _buildGenderSelector(),
-                              _buildFormField('Tinggi (cm)', _heightController,
-                                  TextInputType.number),
-                              _buildFormField('Berat (kg)', _weightController,
-                                  TextInputType.number),
-                              _buildActivityLevelSelector(),
-                              const SizedBox(height: 12),
-                              Consumer<ProfileProvider>(
-                                builder: (context, provider, child) {
-                                  return RoundedButton(
-                                    text: provider.isLoading
-                                        ? "Menyimpan..."
-                                        : "Simpan Profil",
-                                    onPressed: provider.isLoading
-                                        ? null
-                                        : _saveProfile,
-                                    color: AppColors.primary,
-                                    isLoading: provider.isLoading,
+                            if (ResponsiveLayout.isDesktop(context))
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: Column(
+                                      children: [
+                                        // Personal information section
+                                        GlassContainer(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              _buildSectionTitle(
+                                                  'Informasi Pribadi'),
+                                              const SizedBox(height: 12),
+                                              _buildFormField(
+                                                  'Nama',
+                                                  _nameController,
+                                                  TextInputType.text),
+                                              _buildFormField(
+                                                  'Usia',
+                                                  _ageController,
+                                                  TextInputType.number),
+                                              _buildGenderSelector(),
+                                              _buildFormField(
+                                                  'Tinggi (cm)',
+                                                  _heightController,
+                                                  TextInputType.number),
+                                              _buildFormField(
+                                                  'Berat (kg)',
+                                                  _weightController,
+                                                  TextInputType.number),
+                                              _buildActivityLevelSelector(),
+                                              const SizedBox(height: 12),
+                                              Consumer<ProfileProvider>(
+                                                builder:
+                                                    (context, provider, child) {
+                                                  return RoundedButton(
+                                                    text: provider.isLoading
+                                                        ? "Menyimpan..."
+                                                        : "Simpan Profil",
+                                                    onPressed:
+                                                        provider.isLoading
+                                                            ? null
+                                                            : _saveProfile,
+                                                    color: AppColors.primary,
+                                                    isLoading:
+                                                        provider.isLoading,
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 24),
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        // Account section
+                                        GlassContainer(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              _buildSectionTitle('Akun'),
+                                              const SizedBox(height: 12),
+                                              _buildAccountOption(
+                                                  'Ubah Password',
+                                                  Icons.lock_outline, () {
+                                                // Handle password change
+                                              }),
+                                              _buildAccountOption(
+                                                  'Notifikasi',
+                                                  Icons
+                                                      .notifications_none_outlined,
+                                                  () async {}),
+                                              _buildAccountOption('Privasi',
+                                                  Icons.shield_outlined, () {
+                                                // Handle privacy settings
+                                              }),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        // Logout button
+                                        Consumer<AuthProvider>(
+                                          builder:
+                                              (context, authProvider, child) {
+                                            // Only show logout if user is logged in
+                                            if (!authProvider.isLoggedIn) {
+                                              return const SizedBox.shrink();
+                                            }
+
+                                            return GlassContainer(
+                                              color:
+                                                  Colors.red.withOpacity(0.05),
+                                              borderColor:
+                                                  Colors.red.withOpacity(0.2),
+                                              child: InkWell(
+                                                onTap: authProvider.isLoading
+                                                    ? null
+                                                    : _handleLogout,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                                child: Padding(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(vertical: 12),
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      if (authProvider
+                                                          .isLoading)
+                                                        SizedBox(
+                                                          width: 20,
+                                                          height: 20,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            valueColor:
+                                                                AlwaysStoppedAnimation<
+                                                                    Color>(
+                                                              Colors
+                                                                  .red.shade700,
+                                                            ),
+                                                          ),
+                                                        )
+                                                      else
+                                                        Icon(
+                                                          Icons.logout_rounded,
+                                                          color: Colors
+                                                              .red.shade700,
+                                                          size: 20,
+                                                        ),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        authProvider.isLoading
+                                                            ? "Keluar..."
+                                                            : "Keluar",
+                                                        style: TextStyle(
+                                                          fontSize: 14,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          color: Colors
+                                                              .red.shade700,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else ...[
+                              // Mobile layout (original layout)
+                              // Personal information section
+                              GlassContainer(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionTitle('Informasi Pribadi'),
+                                    const SizedBox(height: 12),
+                                    _buildFormField('Nama', _nameController,
+                                        TextInputType.text),
+                                    _buildFormField('Usia', _ageController,
+                                        TextInputType.number),
+                                    _buildGenderSelector(),
+                                    _buildFormField(
+                                        'Tinggi (cm)',
+                                        _heightController,
+                                        TextInputType.number),
+                                    _buildFormField(
+                                        'Berat (kg)',
+                                        _weightController,
+                                        TextInputType.number),
+                                    _buildActivityLevelSelector(),
+                                    const SizedBox(height: 12),
+                                    Consumer<ProfileProvider>(
+                                      builder: (context, provider, child) {
+                                        return RoundedButton(
+                                          text: provider.isLoading
+                                              ? "Menyimpan..."
+                                              : "Simpan Profil",
+                                          onPressed: provider.isLoading
+                                              ? null
+                                              : _saveProfile,
+                                          color: AppColors.primary,
+                                          isLoading: provider.isLoading,
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Account section
+                              GlassContainer(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildSectionTitle('Akun'),
+                                    const SizedBox(height: 12),
+                                    _buildAccountOption(
+                                        'Ubah Password', Icons.lock_outline,
+                                        () {
+                                      // Handle password change
+                                    }),
+                                    _buildAccountOption(
+                                        'Notifikasi',
+                                        Icons.notifications_none_outlined,
+                                        () async {}),
+                                    _buildAccountOption(
+                                        'Privasi', Icons.shield_outlined, () {
+                                      // Handle privacy settings
+                                    }),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Logout button
+                              Consumer<AuthProvider>(
+                                builder: (context, authProvider, child) {
+                                  // Only show logout if user is logged in
+                                  if (!authProvider.isLoggedIn) {
+                                    return const SizedBox.shrink();
+                                  }
+
+                                  return GlassContainer(
+                                    color: Colors.red.withOpacity(0.05),
+                                    borderColor: Colors.red.withOpacity(0.2),
+                                    child: InkWell(
+                                      onTap: authProvider.isLoading
+                                          ? null
+                                          : _handleLogout,
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            if (authProvider.isLoading)
+                                              SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                          Color>(
+                                                    Colors.red.shade700,
+                                                  ),
+                                                ),
+                                              )
+                                            else
+                                              Icon(
+                                                Icons.logout_rounded,
+                                                color: Colors.red.shade700,
+                                                size: 20,
+                                              ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              authProvider.isLoading
+                                                  ? "Keluar..."
+                                                  : "Keluar",
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.red.shade700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
                                   );
                                 },
                               ),
                             ],
-                          ),
+
+                            const SizedBox(height: 24),
+                          ],
                         ),
-
-                        const SizedBox(height: 16),
-
-                        // Account section
-                        GlassContainer(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionTitle('Akun'),
-                              const SizedBox(height: 12),
-                              _buildAccountOption(
-                                  'Ubah Password', Icons.lock_outline, () {
-                                // Handle password change
-                              }),
-                              _buildAccountOption('Notifikasi',
-                                  Icons.notifications_none_outlined, () {
-                                // Handle notifications
-                              }),
-                              _buildAccountOption(
-                                  'Privasi', Icons.shield_outlined, () {
-                                // Handle privacy settings
-                              }),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Logout button
-                        Consumer<AuthProvider>(
-                          builder: (context, authProvider, child) {
-                            // Only show logout if user is logged in
-                            if (!authProvider.isLoggedIn) {
-                              return const SizedBox.shrink();
-                            }
-
-                            return GlassContainer(
-                              color: Colors.red.withOpacity(0.05),
-                              borderColor: Colors.red.withOpacity(0.2),
-                              child: InkWell(
-                                onTap: authProvider.isLoading
-                                    ? null
-                                    : _handleLogout,
-                                borderRadius: BorderRadius.circular(12),
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      if (authProvider.isLoading)
-                                        SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                              Colors.red.shade700,
-                                            ),
-                                          ),
-                                        )
-                                      else
-                                        Icon(
-                                          Icons.logout_rounded,
-                                          color: Colors.red.shade700,
-                                          size: 20,
-                                        ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        authProvider.isLoading
-                                            ? "Keluar..."
-                                            : "Keluar",
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.red.shade700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-
-                        const SizedBox(height: 24),
-                      ],
+                      ),
                     ),
                   ),
                 ),

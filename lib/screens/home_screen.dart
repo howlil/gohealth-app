@@ -3,12 +3,15 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import '../widgets/navigations/app_layout.dart';
 import '../utils/app_colors.dart';
+import '../utils/responsive_helper.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/home/stat_chip.dart';
 import '../widgets/home/action_glass_card.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/profile_provider.dart';
+import '../providers/notification_provider.dart';
 import 'package:go_router/go_router.dart';
+import '../widgets/navigations/responsive_layout.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DashboardProvider>().loadDashboardData();
       context.read<ProfileProvider>().initializeProfile();
+      context.read<NotificationProvider>().loadUnreadCount();
     });
   }
 
@@ -92,26 +96,61 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }
 
-              return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 16),
-                    _buildHeader(dashboardProvider),
-                    const SizedBox(height: 16),
-                    _buildStatCards(dashboardProvider),
-                    const SizedBox(height: 24),
-                    _buildCaloriesTracker(dashboardProvider),
-                    const SizedBox(height: 24),
-                    _buildActionCards(),
-                    const SizedBox(height: 24),
-                    _buildNutritionSummary(dashboardProvider),
-                    const SizedBox(height: 24),
-                    _buildBottomStats(dashboardProvider),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+              return AdaptiveLayout(
+                builder: (context, constraints) {
+                  final isLandscape = ResponsiveHelper.isLandscape(context);
+                  final isTabletOrDesktop =
+                      ResponsiveHelper.isTablet(context) ||
+                          ResponsiveHelper.isDesktop(context);
+
+                  return SingleChildScrollView(
+                    padding: ResponsiveHelper.getAdaptivePadding(context),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: ResponsiveHelper.getResponsiveValue(
+                            context,
+                            mobile: double.infinity,
+                            tablet: 800,
+                            desktop: 1200,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                                height: ResponsiveHelper.getAdaptiveSpacing(
+                                    context,
+                                    baseSpacing: 16)),
+                            _buildHeader(dashboardProvider),
+                            SizedBox(
+                                height: ResponsiveHelper.getAdaptiveSpacing(
+                                    context,
+                                    baseSpacing: 16)),
+                            _buildStatCards(dashboardProvider),
+                            SizedBox(
+                                height: ResponsiveHelper.getAdaptiveSpacing(
+                                    context,
+                                    baseSpacing: 24)),
+
+                            // Responsive layout untuk konten utama
+                            if (isTabletOrDesktop ||
+                                (ResponsiveHelper.isMobile(context) &&
+                                    isLandscape))
+                              _buildDesktopLayout(dashboardProvider)
+                            else
+                              _buildMobileLayout(dashboardProvider),
+
+                            SizedBox(
+                                height: ResponsiveHelper.getAdaptiveSpacing(
+                                    context,
+                                    baseSpacing: 24)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
               );
             },
           ),
@@ -123,16 +162,107 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHeader(DashboardProvider dashboardProvider) {
     final userName = dashboardProvider.userName;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Text(
-          "Hey ${userName.split(' ').first}",
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Hey ${userName.split(' ').first}",
+                style:
+                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+              Text(
+                'Selamat datang di GoHealth',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ],
+          ),
         ),
-        Text(
-          'Selamat datang di GoHealth',
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+        const SizedBox(width: 12),
+        Consumer<NotificationProvider>(
+          builder: (context, notificationProvider, child) {
+            return SizedBox(
+              width: 48, // Fixed width untuk mencegah overflow
+              height: 48, // Fixed height
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      context.push('/notifications');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Icon(
+                            Icons.notifications_outlined,
+                            size: 24,
+                            color: Colors.grey.shade700,
+                          ),
+                          if (notificationProvider.unreadCount > 0)
+                            Positioned(
+                              right: -4,
+                              top: -4,
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  minWidth: 16,
+                                  maxWidth: 24,
+                                ),
+                                height: 16,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border:
+                                      Border.all(color: Colors.white, width: 1),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    notificationProvider.unreadCount > 99
+                                        ? '99+'
+                                        : notificationProvider.unreadCount
+                                            .toString(),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      height: 1,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
@@ -177,12 +307,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCaloriesTracker(DashboardProvider dashboardProvider) {
     final spots = dashboardProvider.caloriesSpots;
-    final maxY = spots.isEmpty
-        ? 2000.0
-        : (spots.map((spot) => spot.y).reduce((a, b) => a > b ? a : b) + 500.0)
-            .roundToDouble();
     final labels = dashboardProvider.chartLabels;
     final timeRange = dashboardProvider.timeRange;
+
+    // Calculate statistics
+    double averageCalories = 0;
+    double minY = 0;
+    double maxY = 3000; // Default max
+
+    if (spots.isNotEmpty) {
+      final calorieValues = spots.map((spot) => spot.y).toList();
+      averageCalories =
+          calorieValues.reduce((a, b) => a + b) / calorieValues.length;
+
+      // Calculate reasonable Y-axis bounds
+      final maxValue = calorieValues.reduce((a, b) => a > b ? a : b);
+      final minValue = calorieValues.reduce((a, b) => a < b ? a : b);
+
+      // Add padding to the max value
+      maxY = (maxValue * 1.2).ceilToDouble();
+      if (maxY < 1000) maxY = 1000;
+
+      // Set minimum with some padding
+      minY = (minValue * 0.8).floorToDouble();
+      if (minY < 0) minY = 0;
+    }
 
     return GlassCard(
       child: Column(
@@ -191,34 +340,65 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Calories Tracker',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Calories Tracker',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  if (spots.isNotEmpty)
+                    Text(
+                      'Average: ${averageCalories.toStringAsFixed(0)} kcal',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                ],
               ),
               _buildTimeRangeSelector(dashboardProvider),
             ],
           ),
           const SizedBox(height: 16),
           SizedBox(
-            height: 180,
+            height: 220,
             child: spots.isEmpty
                 ? Center(
-                    child: Text(
-                      'No data available',
-                      style: TextStyle(color: Colors.grey.shade600),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.insert_chart_outlined,
+                          size: 48,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No data available',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ],
                     ),
                   )
                 : LineChart(
                     LineChartData(
                       gridData: FlGridData(
                         show: true,
-                        drawVerticalLine: false,
-                        horizontalInterval: maxY / 4,
+                        drawVerticalLine: true,
+                        horizontalInterval: (maxY - minY) / 5,
+                        verticalInterval: 1,
                         getDrawingHorizontalLine: (value) {
                           return FlLine(
                             color: Colors.grey.shade200,
                             strokeWidth: 1,
                             dashArray: [5, 5],
+                          );
+                        },
+                        getDrawingVerticalLine: (value) {
+                          return FlLine(
+                            color: Colors.grey.shade100,
+                            strokeWidth: 1,
                           );
                         },
                       ),
@@ -228,32 +408,49 @@ class _HomeScreenState extends State<HomeScreen> {
                           sideTitles: SideTitles(
                             showTitles: true,
                             reservedSize: 30,
+                            interval: 1,
                             getTitlesWidget: (value, meta) {
                               if (value.toInt() >= labels.length ||
-                                  value.toInt() < 0) {
+                                  value.toInt() < 0 ||
+                                  value != value.toInt()) {
                                 return const SizedBox.shrink();
                               }
-                              final style = TextStyle(
-                                color: Colors.grey.shade500,
-                                fontSize: 11,
+
+                              // Show every nth label based on data length
+                              final showInterval = labels.length > 7 ? 2 : 1;
+                              if (value.toInt() % showInterval != 0) {
+                                return const SizedBox.shrink();
+                              }
+
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  labels[value.toInt()],
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               );
-                              String text = labels[value.toInt()];
-                              return Text(text, style: style);
                             },
                           ),
                         ),
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            interval: maxY / 4,
-                            reservedSize: 40,
+                            interval: (maxY - minY) / 5,
+                            reservedSize: 45,
                             getTitlesWidget: (value, meta) {
-                              if (value == 0) return const SizedBox.shrink();
-                              return Text(
-                                value.toInt().toString(),
-                                style: TextStyle(
-                                  color: Colors.grey.shade500,
-                                  fontSize: 11,
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Text(
+                                  '${value.toInt()}',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               );
                             },
@@ -266,24 +463,109 @@ class _HomeScreenState extends State<HomeScreen> {
                           sideTitles: SideTitles(showTitles: false),
                         ),
                       ),
-                      borderData: FlBorderData(show: false),
+                      borderData: FlBorderData(
+                        show: true,
+                        border: Border.all(
+                          color: Colors.grey.shade200,
+                          width: 1,
+                        ),
+                      ),
                       minX: 0,
                       maxX: spots.length - 1.0,
-                      minY: 0,
+                      minY: minY,
                       maxY: maxY,
+                      lineTouchData: LineTouchData(
+                        enabled: true,
+                        touchTooltipData: LineTouchTooltipData(
+                          getTooltipColor: (touchedSpot) =>
+                              Colors.black87.withOpacity(0.8),
+                          tooltipPadding: const EdgeInsets.all(8),
+                          tooltipMargin: 8,
+                          getTooltipItems: (touchedSpots) {
+                            return touchedSpots.map((touchedSpot) {
+                              final spot = touchedSpot;
+                              if (spot.x.toInt() >= labels.length) {
+                                return null;
+                              }
+
+                              return LineTooltipItem(
+                                '${labels[spot.x.toInt()]}\n${spot.y.toStringAsFixed(0)} kcal',
+                                const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              );
+                            }).toList();
+                          },
+                        ),
+                        touchCallback: (FlTouchEvent event,
+                            LineTouchResponse? response) {},
+                        handleBuiltInTouches: true,
+                      ),
+                      extraLinesData: ExtraLinesData(
+                        horizontalLines: [
+                          if (averageCalories > 0)
+                            HorizontalLine(
+                              y: averageCalories,
+                              color: Colors.orange.withOpacity(0.7),
+                              strokeWidth: 2,
+                              dashArray: [8, 4],
+                              label: HorizontalLineLabel(
+                                show: true,
+                                alignment: Alignment.topRight,
+                                padding:
+                                    const EdgeInsets.only(right: 5, bottom: 5),
+                                style: TextStyle(
+                                  color: Colors.orange.shade700,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                labelResolver: (line) => 'Avg',
+                              ),
+                            ),
+                          if (dashboardProvider.caloriesTarget > 0)
+                            HorizontalLine(
+                              y: dashboardProvider.caloriesTarget,
+                              color: Colors.red.withOpacity(0.5),
+                              strokeWidth: 2,
+                              dashArray: [8, 4],
+                              label: HorizontalLineLabel(
+                                show: true,
+                                alignment: Alignment.topRight,
+                                padding:
+                                    const EdgeInsets.only(right: 5, top: 5),
+                                style: TextStyle(
+                                  color: Colors.red.shade700,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                labelResolver: (line) => 'Target',
+                              ),
+                            ),
+                        ],
+                      ),
                       lineBarsData: [
                         LineChartBarData(
                           spots: spots,
                           isCurved: true,
+                          curveSmoothness: 0.3,
                           color: AppColors.primary,
                           barWidth: 3,
                           isStrokeCapRound: true,
                           dotData: FlDotData(
                             show: true,
                             getDotPainter: (spot, percent, barData, index) {
+                              // Highlight dots that are above target
+                              final isAboveTarget =
+                                  dashboardProvider.caloriesTarget > 0 &&
+                                      spot.y > dashboardProvider.caloriesTarget;
+
                               return FlDotCirclePainter(
-                                radius: 4,
-                                color: AppColors.primary,
+                                radius: 5,
+                                color: isAboveTarget
+                                    ? Colors.red
+                                    : AppColors.primary,
                                 strokeWidth: 2,
                                 strokeColor: Colors.white,
                               );
@@ -305,6 +587,29 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
           ),
+          if (spots.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildLegendItem(
+                    color: AppColors.primary,
+                    label: 'Consumed',
+                  ),
+                  _buildLegendItem(
+                    color: Colors.orange,
+                    label: 'Average',
+                    isDashed: true,
+                  ),
+                  _buildLegendItem(
+                    color: Colors.red,
+                    label: 'Target',
+                    isDashed: true,
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -596,5 +901,94 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDivider() {
     return Container(height: 40, width: 1, color: Colors.grey.shade300);
+  }
+
+  Widget _buildLegendItem({
+    required Color color,
+    required String label,
+    bool isDashed = false,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 20,
+          height: 3,
+          color: isDashed ? Colors.transparent : color,
+          child: isDashed
+              ? Row(
+                  children: List.generate(
+                      3,
+                      (index) => Expanded(
+                            child: Container(
+                              margin: EdgeInsets.symmetric(
+                                  horizontal: index.isOdd ? 1 : 0),
+                              height: 2,
+                              color: index.isEven ? color : Colors.transparent,
+                            ),
+                          )),
+                )
+              : null,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey.shade700,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopLayout(DashboardProvider dashboardProvider) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 2,
+          child: _buildCaloriesTracker(dashboardProvider),
+        ),
+        SizedBox(
+            width:
+                ResponsiveHelper.getAdaptiveSpacing(context, baseSpacing: 24)),
+        Expanded(
+          child: Column(
+            children: [
+              _buildActionCards(),
+              SizedBox(
+                  height: ResponsiveHelper.getAdaptiveSpacing(context,
+                      baseSpacing: 24)),
+              _buildBottomStats(dashboardProvider),
+              SizedBox(
+                  height: ResponsiveHelper.getAdaptiveSpacing(context,
+                      baseSpacing: 24)),
+              _buildNutritionSummary(dashboardProvider),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileLayout(DashboardProvider dashboardProvider) {
+    return Column(
+      children: [
+        _buildCaloriesTracker(dashboardProvider),
+        SizedBox(
+            height:
+                ResponsiveHelper.getAdaptiveSpacing(context, baseSpacing: 24)),
+        _buildActionCards(),
+        SizedBox(
+            height:
+                ResponsiveHelper.getAdaptiveSpacing(context, baseSpacing: 24)),
+        _buildNutritionSummary(dashboardProvider),
+        SizedBox(
+            height:
+                ResponsiveHelper.getAdaptiveSpacing(context, baseSpacing: 24)),
+        _buildBottomStats(dashboardProvider),
+      ],
+    );
   }
 }

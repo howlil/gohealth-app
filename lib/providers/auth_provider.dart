@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../services/auth_service.dart';
+import '../services/notification_manager.dart';
 import '../models/auth_model.dart';
 import '../utils/storage_util.dart';
 
@@ -42,6 +44,11 @@ class AuthProvider extends ChangeNotifier {
             token: await StorageUtil.getAccessToken() ?? '',
             refreshToken: await StorageUtil.getRefreshToken() ?? '',
           );
+
+          // Send FCM token to server for existing authenticated user
+          NotificationManager.instance.sendTokenToServer().catchError((error) {
+            debugPrint('Error sending FCM token for existing user: $error');
+          });
         }
       }
     } catch (e) {
@@ -63,6 +70,12 @@ class AuthProvider extends ChangeNotifier {
       if (user != null) {
         _user = user;
         _isLoggedIn = true;
+
+        // Send FCM token to server after successful login
+        NotificationManager.instance.sendTokenToServer().catchError((error) {
+          debugPrint('Error sending FCM token after login: $error');
+        });
+
         return true;
       } else {
         _error = 'Login failed. Please check your credentials.';
@@ -85,9 +98,26 @@ class AuthProvider extends ChangeNotifier {
       final user = await _authService.register(name, email, password);
 
       if (user != null) {
-        _user = user;
-        _isLoggedIn = true;
-        return true;
+        // Check if user has valid tokens (successful auto-login after registration)
+        if (user.token.isNotEmpty && user.refreshToken.isNotEmpty) {
+          _user = user;
+          _isLoggedIn = true;
+
+          // Send FCM token to server after successful registration
+          NotificationManager.instance.sendTokenToServer().catchError((error) {
+            debugPrint('Error sending FCM token after registration: $error');
+          });
+
+          return true;
+        } else {
+          // Registration successful but auto-login failed
+          // User needs to login manually
+          _user = null;
+          _isLoggedIn = false;
+          _error =
+              'Registration successful! Please login with your credentials.';
+          return true; // Return true because registration was successful
+        }
       } else {
         _error = 'Registration failed. Please try again.';
         return false;

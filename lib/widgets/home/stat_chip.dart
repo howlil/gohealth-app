@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../glass_card.dart';
+import '../../utils/responsive_helper.dart';
 
 class StatChip extends StatelessWidget {
   final String title;
@@ -19,8 +20,33 @@ class StatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = ResponsiveHelper.getAdaptiveFontSize(
+      context,
+      baseFontSize: 18,
+      landscapeMultiplier: 0.9,
+      tabletMultiplier: 1.1,
+    );
+
+    final titleFontSize = ResponsiveHelper.getAdaptiveFontSize(
+      context,
+      baseFontSize: 12,
+      landscapeMultiplier: 0.9,
+      tabletMultiplier: 1.1,
+    );
+
+    final valueFontSize = ResponsiveHelper.getAdaptiveFontSize(
+      context,
+      baseFontSize: 16,
+      landscapeMultiplier: 0.9,
+      tabletMultiplier: 1.1,
+    );
+
+    final padding = ResponsiveHelper.isLandscape(context)
+        ? const EdgeInsets.symmetric(vertical: 8, horizontal: 8)
+        : const EdgeInsets.symmetric(vertical: 12, horizontal: 12);
+
     return GlassCard(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+      padding: padding,
       color: color.withOpacity(0.05),
       borderColor: color.withOpacity(0.1),
       onTap: onTap,
@@ -32,25 +58,31 @@ class StatChip extends StatelessWidget {
               Icon(
                 iconData,
                 color: color,
-                size: 18,
+                size: iconSize,
               ),
-              const SizedBox(width: 4),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey.shade700,
+              SizedBox(width: ResponsiveHelper.isLandscape(context) ? 2 : 4),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: titleFontSize,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade700,
+                    decoration: TextDecoration.none,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: ResponsiveHelper.isLandscape(context) ? 2 : 4),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 16,
+            style: TextStyle(
+              fontSize: valueFontSize,
               fontWeight: FontWeight.bold,
+              decoration: TextDecoration.none,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'tangkapin-317d2.firebasestorage.app',
     measurementId: 'G-V0RRE3D6CE',
   );
+
 }

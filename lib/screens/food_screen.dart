@@ -315,48 +315,57 @@ class _FoodScreenState extends State<FoodScreen> {
           // Main content
           Column(
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 16),
-                    _buildHeader(),
-                    const SizedBox(height: 16),
-                    _buildQuickStats(),
-                    const SizedBox(height: 16),
-                    ModernSearchField(
-                      controller: _searchController,
-                      onChanged: (value) {
-                        setState(() {});
-                        if (_selectedTab != 'Favorit') {
-                          _loadFoods(refresh: true);
-                        }
-                      },
-                      hintText: 'Cari makanan...',
-                    ),
-                    const SizedBox(height: 16),
-                    if (_isLoadingCategories)
-                      const Center(child: CircularProgressIndicator())
-                    else
-                      CategoryFilterChips(
-                        categories: _categories.map((cat) => cat.name).toList(),
-                        selectedCategory: _selectedTab,
-                        onCategorySelected: (category) {
-                          setState(() {
-                            _selectedTab = category;
-                          });
+              // Header section dengan flexible sizing
+              Flexible(
+                flex: 0,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 12),
+                      _buildHeader(),
+                      const SizedBox(height: 12),
+                      _buildQuickStats(),
+                      const SizedBox(height: 12),
+                      ModernSearchField(
+                        controller: _searchController,
+                        onChanged: (value) {
+                          setState(() {});
                           if (_selectedTab != 'Favorit') {
                             _loadFoods(refresh: true);
                           }
                         },
+                        hintText: 'Cari makanan...',
                       ),
-                    const SizedBox(height: 16),
-                  ],
+                      const SizedBox(height: 12),
+                      if (_isLoadingCategories)
+                        const SizedBox(
+                          height: 40,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else
+                        CategoryFilterChips(
+                          categories:
+                              _categories.map((cat) => cat.name).toList(),
+                          selectedCategory: _selectedTab,
+                          onCategorySelected: (category) {
+                            setState(() {
+                              _selectedTab = category;
+                            });
+                            if (_selectedTab != 'Favorit') {
+                              _loadFoods(refresh: true);
+                            }
+                          },
+                        ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
                 ),
               ),
 
-              // Daftar makanan dan detail
+              // Daftar makanan dan detail - menggunakan semua ruang yang tersisa
               Expanded(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
@@ -433,8 +442,11 @@ class _FoodScreenState extends State<FoodScreen> {
   }
 
   Widget _buildQuickStats() {
-    return SizedBox(
-      height: 80,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxHeight: 75,
+        minHeight: 65,
+      ),
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
@@ -470,15 +482,15 @@ class _FoodScreenState extends State<FoodScreen> {
     required Color color,
   }) {
     return Container(
-      width: 120,
-      padding: const EdgeInsets.all(16),
+      width: 110,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
+            blurRadius: 6,
             offset: const Offset(0, 2),
           ),
         ],
@@ -486,35 +498,40 @@ class _FoodScreenState extends State<FoodScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(
               icon,
-              size: 20,
+              size: 18,
               color: color,
             ),
           ),
+          const SizedBox(height: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   color: Colors.grey.shade600,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -546,9 +563,9 @@ class _FoodScreenState extends State<FoodScreen> {
 
     if (_isLoading && _foods.isEmpty) {
       return ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
         itemCount: 5,
-        separatorBuilder: (context, index) => const SizedBox(height: 10),
+        separatorBuilder: (context, index) => const SizedBox(height: 8),
         itemBuilder: (context, index) => const FoodItemSkeleton(),
       );
     }
@@ -628,9 +645,9 @@ class _FoodScreenState extends State<FoodScreen> {
         return false;
       },
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
         itemCount: filteredFoods.length + (_isLoading ? 1 : 0),
-        separatorBuilder: (context, index) => const SizedBox(height: 10),
+        separatorBuilder: (context, index) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
           if (index == filteredFoods.length) {
             return const Center(
@@ -660,7 +677,7 @@ class _FoodScreenState extends State<FoodScreen> {
     final food = _selectedFood!;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -825,41 +842,43 @@ class _FoodScreenState extends State<FoodScreen> {
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
           // Tombol tambahkan ke menu
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () {
-                // Implementasi untuk menambahkan ke menu
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${food.name} ditambahkan ke menu harian Anda',
+          SafeArea(
+            child: SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () {
+                  // Implementasi untuk menambahkan ke menu
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '${food.name} ditambahkan ke menu harian Anda',
+                      ),
+                      backgroundColor: AppColors.primary,
+                      behavior: SnackBarBehavior.floating,
                     ),
-                    backgroundColor: AppColors.primary,
-                    behavior: SnackBarBehavior.floating,
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-              child: const Text(
-                'Tambahkan',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                child: const Text(
+                  'Tambahkan',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ),
 
-          const SizedBox(height: 50),
+          const SizedBox(height: 16),
         ],
       ),
     );

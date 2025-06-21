@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' as http_parser;
 import 'dart:convert';
 import '../models/user_profile_model.dart';
 import '../utils/env_config.dart';
@@ -102,11 +103,41 @@ class UserService {
   Future<ApiResponse<String>?> uploadProfileImage(File image) async {
     try {
       final token = await StorageUtil.getAccessToken();
-      
+
       if (token == null) {
         return ApiResponse.error('Authentication token not found');
       }
-      
+
+      // Validate file extension
+      final fileName = image.path.split('/').last.toLowerCase();
+      final validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+      final fileExtension = fileName.split('.').last;
+
+      if (!validExtensions.contains(fileExtension)) {
+        return ApiResponse.error(
+            'File harus berformat gambar (JPG, JPEG, PNG, GIF, WEBP)');
+      }
+
+      // Determine MIME type
+      String contentType;
+      switch (fileExtension) {
+        case 'jpg':
+        case 'jpeg':
+          contentType = 'image/jpeg';
+          break;
+        case 'png':
+          contentType = 'image/png';
+          break;
+        case 'gif':
+          contentType = 'image/gif';
+          break;
+        case 'webp':
+          contentType = 'image/webp';
+          break;
+        default:
+          contentType = 'image/jpeg'; // Default fallback
+      }
+
       final request = http.MultipartRequest(
         'POST',
         Uri.parse('$_baseUrl${ApiEndpoints.users}/profile/image'),
@@ -115,24 +146,35 @@ class UserService {
       // Add authorization header
       request.headers.addAll({
         'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
       });
-      
-      // Add file to the request
-      request.files.add(
-        await http.MultipartFile.fromPath('image', image.path),
+
+      // Add file to the request with explicit content type
+      final multipartFile = await http.MultipartFile.fromPath(
+        'image',
+        image.path,
+        contentType: http_parser.MediaType.parse(contentType),
       );
+
+      request.files.add(multipartFile);
+
+      debugPrint('Uploading image: $fileName');
+      debugPrint('Content-Type: $contentType');
 
       // Send the request
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
+      debugPrint('Upload response status: ${response.statusCode}');
+      debugPrint('Upload response body: ${response.body}');
+
       // Parse response
       final responseData = json.decode(response.body);
-      
+
       if (responseData['success'] == true) {
         // Get the image URL from response
         final imageUrl = responseData['data']['profileImage'];
-        
+
         return ApiResponse.success(
           imageUrl,
           message: responseData['message'] ?? 'Image uploaded successfully',
@@ -170,7 +212,8 @@ class UserService {
       if (response['success'] == true) {
         return ApiResponse.success(
           response['data'],
-          message: response['message'] ?? 'Dashboard data retrieved successfully',
+          message:
+              response['message'] ?? 'Dashboard data retrieved successfully',
         );
       } else {
         return ApiResponse.error(

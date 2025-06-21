@@ -4,12 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../utils/app_colors.dart';
 import '../utils/env_config.dart';
+import '../utils/responsive_helper.dart';
 import '../widgets/rounded_button.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth/auth_error_widget.dart';
 import '../services/login_service.dart';
 import '../widgets/inputs/rounded_input_field.dart';
-import '../widgets/auth/google_sign_in_button.dart';
 import '../widgets/glass_card.dart';
 import '../utils/app_text_styles.dart';
 import '../utils/app_constants.dart';
@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen>
     // Check if already logged in
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authState = Provider.of<AuthProvider>(context, listen: false);
-      if (authState.isLoggedIn) {
+      if (authState.isLoggedIn && !authState.isLoading) {
         context.go('/home');
       }
     });
@@ -108,21 +108,13 @@ class _LoginScreenState extends State<LoginScreen>
         _passwordController.text,
       );
 
-      if (mounted) {
-        if (success) {
-          // Prevent navigation if already navigating
-          if (Navigator.of(context).userGestureInProgress) {
-            Future.delayed(const Duration(milliseconds: 100), () {
-              if (mounted) context.go('/home');
-            });
-          } else {
-            context.go('/home');
-          }
-        } else {
-          setState(() {
-            _errorMessage = authProvider.error;
-          });
-        }
+      if (mounted && success) {
+        // Langsung navigate ke home tanpa delay
+        context.go('/home');
+      } else if (mounted && !success) {
+        setState(() {
+          _errorMessage = authProvider.error;
+        });
       }
     } catch (e) {
       if (mounted) {
@@ -229,21 +221,39 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildContent() {
+    return AdaptiveLayout(
+      builder: (context, constraints) {
+        final isLandscape = ResponsiveHelper.isLandscape(context);
+
+        if (isLandscape) {
+          // Landscape layout
+          return _buildLandscapeLayout();
+        } else {
+          // Portrait layout
+          return _buildPortraitLayout();
+        }
+      },
+    );
+  }
+
+  Widget _buildPortraitLayout() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: ResponsiveHelper.getAdaptivePadding(context),
       child: Column(
         children: [
-          SizedBox(height: MediaQuery.of(context).size.height * 0.1),
+          SizedBox(height: ResponsiveHelper.getScreenHeight(context) * 0.1),
 
           // Logo and title section
           _buildLogoSection(),
 
-          SizedBox(height: MediaQuery.of(context).size.height * 0.05),
+          SizedBox(height: ResponsiveHelper.getScreenHeight(context) * 0.05),
 
           // Login card
           _buildLoginCard(),
 
-          const SizedBox(height: 40),
+          SizedBox(
+              height: ResponsiveHelper.getAdaptiveSpacing(context,
+                  baseSpacing: 40)),
 
           // Footer
           _buildFooter(),
@@ -252,13 +262,70 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  Widget _buildLandscapeLayout() {
+    return SingleChildScrollView(
+      padding: ResponsiveHelper.getAdaptivePadding(context),
+      child: Row(
+        children: [
+          // Left side - Logo and title
+          Expanded(
+            flex: 1,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildLogoSection(),
+                SizedBox(
+                    height: ResponsiveHelper.getAdaptiveSpacing(context,
+                        baseSpacing: 20)),
+                _buildFooter(),
+              ],
+            ),
+          ),
+
+          SizedBox(
+              width: ResponsiveHelper.getAdaptiveSpacing(context,
+                  baseSpacing: 32)),
+
+          // Right side - Login form
+          Expanded(
+            flex: 1,
+            child: _buildLoginCard(),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLogoSection() {
+    final iconSize = ResponsiveHelper.getResponsiveValue(
+      context,
+      mobile: ResponsiveHelper.isLandscape(context) ? 80.0 : 120.0,
+      tablet: 140.0,
+      desktop: 160.0,
+    );
+
+    final logoFontSize = ResponsiveHelper.getAdaptiveFontSize(
+      context,
+      baseFontSize: 48,
+      landscapeMultiplier: 0.8,
+      tabletMultiplier: 1.1,
+      desktopMultiplier: 1.3,
+    );
+
+    final taglineFontSize = ResponsiveHelper.getAdaptiveFontSize(
+      context,
+      baseFontSize: 16,
+      landscapeMultiplier: 0.9,
+      tabletMultiplier: 1.1,
+      desktopMultiplier: 1.2,
+    );
+
     return Column(
       children: [
         // App icon with glassmorphism effect
         Container(
-          width: 120,
-          height: 120,
+          width: iconSize,
+          height: iconSize,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             boxShadow: [
@@ -281,9 +348,9 @@ class _LoginScreenState extends State<LoginScreen>
                     width: 2,
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.favorite,
-                  size: 60,
+                  size: iconSize * 0.5,
                   color: AppColors.primary,
                 ),
               ),
@@ -291,30 +358,35 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
 
-        const SizedBox(height: 24),
+        SizedBox(
+            height:
+                ResponsiveHelper.getAdaptiveSpacing(context, baseSpacing: 24)),
 
         // App name
         ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
             colors: [AppColors.primary, AppColors.secondary],
           ).createShader(bounds),
-          child: const Text(
+          child: Text(
             'GoHealth',
             style: TextStyle(
-              fontSize: 48,
+              fontSize: logoFontSize,
               fontWeight: FontWeight.w700,
               color: Colors.white,
             ),
           ),
         ),
 
-        const SizedBox(height: 8),
+        SizedBox(
+            height:
+                ResponsiveHelper.getAdaptiveSpacing(context, baseSpacing: 8)),
 
         // Tagline
         Text(
           'Kesehatan dalam genggaman',
+          textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: taglineFontSize,
             color: Colors.black.withAlpha(153),
             fontWeight: FontWeight.w400,
           ),
@@ -430,50 +502,6 @@ class _LoginScreenState extends State<LoginScreen>
                       text: 'Masuk',
                       onPressed: _isLoading ? null : _handleEmailLogin,
                       isLoading: _isLoading,
-                      width: double.infinity,
-                      height: 56,
-                      fontSize: 16,
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 24),
-
-                // Divider
-                Row(
-                  children: [
-                    Expanded(
-                      child: Divider(color: Colors.black.withAlpha(26)),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        'atau',
-                        style: TextStyle(
-                          color: Colors.black.withAlpha(102),
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Divider(color: Colors.black.withAlpha(26)),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // Google sign in button
-                Consumer<AuthProvider>(
-                  builder: (context, authProvider, child) {
-                    return RoundedButton(
-                      text: 'Masuk dengan Google',
-                      onPressed:
-                          authProvider.isLoading ? null : _handleEmailLogin,
-                      color: Colors.white,
-                      textColor: Colors.black87,
-                      icon: const Icon(Icons.g_mobiledata, size: 24),
-                      isLoading: authProvider.isLoading,
                       width: double.infinity,
                       height: 56,
                       fontSize: 16,
