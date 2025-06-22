@@ -11,6 +11,7 @@ import '../widgets/auth/auth_error_widget.dart';
 import '../services/login_service.dart';
 import '../widgets/inputs/rounded_input_field.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/navigations/responsive_layout.dart';
 import '../utils/app_text_styles.dart';
 import '../utils/app_constants.dart';
 import '../utils/api_endpoints.dart';
@@ -43,13 +44,8 @@ class _LoginScreenState extends State<LoginScreen>
     _initializeAnimations();
     _loginService = LoginService(baseUrl: EnvConfig.apiBaseUrl);
 
-    // Check if already logged in
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authState = Provider.of<AuthProvider>(context, listen: false);
-      if (authState.isLoggedIn && !authState.isLoading) {
-        context.go('/home');
-      }
-    });
+    // Remove auto check - let router handle navigation
+    debugPrint('LoginScreen: initState called');
   }
 
   void _initializeAnimations() {
@@ -103,24 +99,72 @@ class _LoginScreenState extends State<LoginScreen>
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      debugPrint('Attempting login with email: ${_emailController.text}');
+
       final success = await authProvider.login(
         _emailController.text,
         _passwordController.text,
       );
 
-      if (mounted && success) {
-        // Langsung navigate ke home tanpa delay
-        context.go('/home');
-      } else if (mounted && !success) {
+      if (!mounted) return;
+
+      debugPrint(
+          'Login result: success=$success, isLoggedIn=${authProvider.isLoggedIn}');
+
+      if (success && authProvider.isLoggedIn) {
+        // Login berhasil - tampilkan dialog success dulu
+        debugPrint('Login successful, showing success dialog');
+
+        await _showSuccessDialog();
+
+        // Setelah dialog ditutup, baru navigate
+        if (mounted) {
+          debugPrint('Navigating to home after success dialog');
+          // Gunakan pushReplacement untuk mencegah kembali ke login
+          context.go('/home');
+        }
+      } else {
+        // Login gagal - tampilkan error
+        debugPrint('Login failed: ${authProvider.error}');
         setState(() {
-          _errorMessage = authProvider.error;
+          _errorMessage =
+              authProvider.error ?? 'Login gagal. Silakan coba lagi.';
         });
+
+        // Tampilkan snackbar untuk error
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_errorMessage ?? 'Login gagal'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(10),
+            ),
+          );
+        }
       }
     } catch (e) {
+      debugPrint('Login error: $e');
       if (mounted) {
         setState(() {
-          _errorMessage = e.toString();
+          _errorMessage = 'Terjadi kesalahan jaringan. Silakan coba lagi.';
         });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_errorMessage ?? 'Terjadi kesalahan'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(10),
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -593,6 +637,105 @@ class _LoginScreenState extends State<LoginScreen>
           ],
         ),
       ],
+    );
+  }
+
+  Future<void> _showSuccessDialog() async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF8FFFC),
+                  Color(0xFFE6F7F0),
+                ],
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Success icon with animation
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary.withOpacity(0.1),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.3),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_outline,
+                    size: 50,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Title
+                const Text(
+                  '🎉 Login Berhasil!',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+
+                // Subtitle
+                Text(
+                  'Selamat datang kembali!\nSiap untuk melanjutkan perjalanan kesehatan Anda?',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
+                // OK button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: const Text(
+                      'Lanjutkan',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

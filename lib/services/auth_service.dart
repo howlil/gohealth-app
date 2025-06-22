@@ -24,6 +24,8 @@ class AuthService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'GoHealth-Flutter-App/1.0.0',
         },
         body: jsonEncode({
           'email': email,
@@ -74,6 +76,8 @@ class AuthService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'GoHealth-Flutter-App/1.0.0',
         },
         body: jsonEncode({
           'name': name,

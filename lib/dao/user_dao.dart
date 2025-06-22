@@ -16,9 +16,7 @@ class UserDao {
         user.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
-      debugPrint('User saved locally: ${user.id}');
     } catch (e) {
-      debugPrint('Error saving user: $e');
       rethrow;
     }
   }

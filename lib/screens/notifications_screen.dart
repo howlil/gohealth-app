@@ -80,64 +80,99 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           ),
 
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 16),
-                    _buildHeader(),
-                    const SizedBox(height: 16),
-                    _buildFilterTabs(),
-                    const SizedBox(height: 16),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Consumer<NotificationProvider>(
-                  builder: (context, provider, child) {
-                    if (provider.isLoading && provider.notifications.isEmpty) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+          // Fully scrollable content
+          Consumer<NotificationProvider>(
+            builder: (context, provider, child) {
+              if (provider.isLoading && provider.notifications.isEmpty) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-                    if (provider.error != null &&
-                        provider.notifications.isEmpty) {
-                      return _buildErrorState(provider.error!);
-                    }
+              if (provider.error != null && provider.notifications.isEmpty) {
+                return _buildErrorState(provider.error!);
+              }
 
-                    if (provider.notifications.isEmpty) {
-                      return _buildEmptyState();
-                    }
-
-                    return RefreshIndicator(
-                      onRefresh: () => provider.refreshAll(),
-                      child: ListView.separated(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        itemCount: provider.notifications.length +
-                            (provider.isLoadingMore ? 1 : 0),
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          if (index == provider.notifications.length) {
-                            return const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(16),
-                                child: CircularProgressIndicator(),
-                              ),
-                            );
-                          }
-
-                          final notification = provider.notifications[index];
-                          return _buildNotificationItem(notification, provider);
-                        },
+              if (provider.notifications.isEmpty) {
+                return SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    children: [
+                      // Header section
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 16),
+                            _buildHeader(),
+                            const SizedBox(height: 16),
+                            _buildFilterTabs(),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
                       ),
+                      // Empty state
+                      Container(
+                        height: MediaQuery.of(context).size.height * 0.6,
+                        child: _buildEmptyState(),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return RefreshIndicator(
+                onRefresh: () => provider.refreshAll(),
+                child: ListView.builder(
+                  controller: _scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: provider.notifications.length +
+                      1 +
+                      (provider.isLoadingMore ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    // Header section
+                    if (index == 0) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 16),
+                            _buildHeader(),
+                            const SizedBox(height: 16),
+                            _buildFilterTabs(),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      );
+                    }
+
+                    // Loading indicator
+                    if (index == provider.notifications.length + 1) {
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    }
+
+                    // Notification items
+                    final notificationIndex = index - 1;
+                    final notification =
+                        provider.notifications[notificationIndex];
+
+                    return Padding(
+                      padding: EdgeInsets.fromLTRB(
+                          16,
+                          0,
+                          16,
+                          notificationIndex == provider.notifications.length - 1
+                              ? 16
+                              : 8),
+                      child: _buildNotificationItem(notification, provider),
                     );
                   },
                 ),
-              ),
-            ],
+              );
+            },
           ),
         ],
       ),

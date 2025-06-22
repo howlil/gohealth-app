@@ -7,6 +7,7 @@ import 'package:gohealth/services/registration_service.dart';
 import 'package:gohealth/widgets/auth/auth_error_widget.dart';
 import 'package:gohealth/widgets/inputs/rounded_input_field.dart';
 import 'package:gohealth/widgets/rounded_button.dart';
+import 'package:gohealth/widgets/navigations/responsive_layout.dart';
 import 'package:gohealth/utils/app_colors.dart';
 import 'package:gohealth/utils/env_config.dart';
 import 'package:gohealth/utils/responsive_helper.dart';
@@ -118,6 +119,9 @@ class _RegistrationScreenState extends State<RegistrationScreen>
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
+      debugPrint(
+          'Attempting registration with email: ${_emailController.text}');
+
       final success = await authProvider.register(
         _nameController.text.trim(),
         _emailController.text.trim(),
@@ -126,39 +130,82 @@ class _RegistrationScreenState extends State<RegistrationScreen>
 
       if (!mounted) return;
 
+      debugPrint(
+          'Registration result: success=$success, isLoggedIn=${authProvider.isLoggedIn}');
+
       if (success) {
-        // Check if user is logged in (auto-login successful) or needs manual login
+        // Registration berhasil
+        debugPrint('Registration successful');
+
         if (authProvider.isLoggedIn) {
-          // Auto-login successful, navigate to home
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Registrasi berhasil! Selamat datang di GoHealth!'),
-              backgroundColor: Colors.green,
-            ),
+          // Auto-login berhasil, navigasi ke home
+          debugPrint('Auto-login successful, showing success dialog for home');
+          await _showSuccessDialog(
+            title: '🎉 Registrasi Berhasil!',
+            message:
+                'Selamat datang di GoHealth!\nMari mulai perjalanan kesehatan Anda!',
           );
-          context.go('/home');
+
+          if (mounted) {
+            debugPrint('Navigating to home after registration success');
+            context.go('/home');
+          }
         } else {
-          // Registration successful but needs manual login
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  authProvider.error ?? 'Registrasi berhasil! Silakan login.'),
-              backgroundColor: Colors.green,
-            ),
+          // Registration berhasil tapi perlu login manual
+          debugPrint('Registration successful, but need manual login');
+          await _showSuccessDialog(
+            title: '✅ Registrasi Berhasil!',
+            message:
+                'Akun Anda berhasil dibuat.\nSilakan login untuk melanjutkan.',
           );
-          context.go('/login');
+
+          if (mounted) {
+            debugPrint('Navigating to login after registration success');
+            context.go('/login');
+          }
         }
       } else {
-        // Registration failed
+        // Registration gagal
+        debugPrint('Registration failed: ${authProvider.error}');
         setState(() {
           _errorMessage =
               authProvider.error ?? 'Registrasi gagal. Silakan coba lagi.';
         });
+
+        // Tampilkan snackbar untuk error
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_errorMessage ?? 'Registrasi gagal'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(10),
+            ),
+          );
+        }
       }
     } catch (error) {
-      setState(() {
-        _errorMessage = 'Something went wrong. Please try again later.';
-      });
+      debugPrint('Registration error: $error');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Terjadi kesalahan jaringan. Silakan coba lagi.';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_errorMessage ?? 'Terjadi kesalahan'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            margin: const EdgeInsets.all(10),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -742,6 +789,106 @@ class _RegistrationScreenState extends State<RegistrationScreen>
           dropdownColor: Colors.white,
         ),
       ),
+    );
+  }
+
+  Future<void> _showSuccessDialog(
+      {required String title, required String message}) async {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFF8FFFC),
+                  Color(0xFFE6F7F0),
+                ],
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Success icon
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary.withOpacity(0.1),
+                    border: Border.all(
+                      color: AppColors.primary.withOpacity(0.3),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.check_circle_outline,
+                    size: 50,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Title
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+
+                // Message
+                Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+
+                // OK button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                    child: const Text(
+                      'Lanjutkan',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../widgets/navigations/app_layout.dart';
 import '../utils/app_colors.dart';
+import '../utils/responsive_helper.dart';
 import '../widgets/inputs/rounded_input_field.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/inputs/tab_selector.dart';
@@ -257,6 +258,10 @@ class _IBMScreenState extends State<IBMScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = ResponsiveHelper.isLandscape(context);
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final isMobileLandscape = isMobile && isLandscape;
+
     return AppLayout(
       title: 'Kalkulator & Pelacak BMI',
       backgroundColor: const Color(0xFFF8F9FA),
@@ -272,8 +277,7 @@ class _IBMScreenState extends State<IBMScreen>
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.primary
-                    .withAlpha(13), // Fixed: withOpacity to withAlpha
+                color: AppColors.primary.withAlpha(13),
               ),
             ),
           ),
@@ -285,33 +289,16 @@ class _IBMScreenState extends State<IBMScreen>
               height: 150,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.secondary
-                    .withAlpha(13), // Fixed: withOpacity to withAlpha
+                color: AppColors.secondary.withAlpha(13),
               ),
             ),
           ),
 
-          // Main content
-          SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                _buildCalculatorSection(),
-                const SizedBox(height: 24),
-                _buildTabControl(),
-                const SizedBox(height: 16),
-                if (_activeTab == 'Ringkasan Gizi')
-                  _buildNutritionSummary()
-                else if (_activeTab == 'Target Berat')
-                  _buildWeightGoalSection()
-                else
-                  _buildBMIHistory(),
-                const SizedBox(height: 50),
-              ],
-            ),
-          ),
+          // Main content - responsive layout
+          if (isMobileLandscape)
+            _buildLandscapeLayout()
+          else
+            _buildPortraitLayout(),
 
           // Loading indicator
           if (_isLoading)
@@ -328,15 +315,123 @@ class _IBMScreenState extends State<IBMScreen>
     );
   }
 
-  Widget _buildCalculatorSection() {
+  Widget _buildPortraitLayout() {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
+        children: [
+          // Calculator section - ikut scroll
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                _buildCalculatorSection(),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+
+          // Tab control - ikut scroll
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                _buildTabControl(),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+
+          // Content area - ikut dalam scroll yang sama
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                if (_activeTab == 'Ringkasan Gizi')
+                  _buildNutritionSummary()
+                else if (_activeTab == 'Target Berat')
+                  _buildWeightGoalSection()
+                else
+                  _buildBMIHistory(),
+                const SizedBox(height: 100), // Extra space for bottom nav
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLandscapeLayout() {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left side - Calculator
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: _buildCalculatorSection(isLandscape: true),
+              ),
+            ),
+            // Divider
+            Container(
+              width: 1,
+              color: Colors.grey.shade200,
+            ),
+            // Right side - Results & Tabs
+            Expanded(
+              flex: 3,
+              child: Column(
+                children: [
+                  // Tab control
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                    child: _buildTabControl(),
+                  ),
+                  // Content
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        children: [
+                          if (_activeTab == 'Ringkasan Gizi')
+                            _buildNutritionSummary(isLandscape: true)
+                          else if (_activeTab == 'Target Berat')
+                            _buildWeightGoalSection()
+                          else
+                            _buildBMIHistory(isLandscape: true),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCalculatorSection({bool isLandscape = false}) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final isMobileLandscape = isMobile && isLandscape;
+
     return GlassCard(
+      padding: EdgeInsets.all(isMobileLandscape ? 12 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Hitung BMI Anda',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: isMobileLandscape ? 16 : 18,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -344,49 +439,47 @@ class _IBMScreenState extends State<IBMScreen>
           Text(
             'BMI (Body Mass Index) adalah pengukuran yang menggunakan tinggi dan berat badan untuk memperkirakan jumlah lemak tubuh.',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: isMobileLandscape ? 11 : 13,
               color: Colors.grey.shade700,
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: isMobileLandscape ? 16 : 24),
 
-          const Text(
+          Text(
             'Tinggi',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isMobileLandscape ? 12 : 14,
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 8),
           RoundedInputField(
-            // Fixed: Changed CustomInputField to InputField
             controller: _heightController,
             hintText: 'Masukkan tinggi (cm)',
             keyboardType: TextInputType.number,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isMobileLandscape ? 12 : 16),
 
-          const Text(
+          Text(
             'Berat',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: isMobileLandscape ? 12 : 14,
               fontWeight: FontWeight.w500,
             ),
           ),
           const SizedBox(height: 8),
           RoundedInputField(
-            // Fixed: Changed CustomInputField to InputField
             controller: _weightController,
             hintText: 'Masukkan berat (kg)',
             keyboardType: TextInputType.number,
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: isMobileLandscape ? 16 : 24),
 
           // Calculate button
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: isMobileLandscape ? 40 : 50,
             child: ElevatedButton(
               onPressed: _isLoading ? null : _calculateBMI,
               style: ElevatedButton.styleFrom(
@@ -398,18 +491,18 @@ class _IBMScreenState extends State<IBMScreen>
                 ),
               ),
               child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
+                  ? SizedBox(
+                      width: isMobileLandscape ? 16 : 20,
+                      height: isMobileLandscape ? 16 : 20,
+                      child: const CircularProgressIndicator(
                         color: Colors.white,
                         strokeWidth: 2,
                       ),
                     )
-                  : const Text(
+                  : Text(
                       'Hitung',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: isMobileLandscape ? 14 : 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -417,39 +510,39 @@ class _IBMScreenState extends State<IBMScreen>
           ),
 
           if (_hasCalculated) ...[
-            const SizedBox(height: 24),
-            _buildBMIResult(),
+            SizedBox(height: isMobileLandscape ? 16 : 24),
+            _buildBMIResult(isLandscape: isLandscape),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildBMIResult() {
+  Widget _buildBMIResult({bool isLandscape = false}) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final isMobileLandscape = isMobile && isLandscape;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isMobileLandscape ? 12 : 16),
       decoration: BoxDecoration(
-        color: _categoryColor
-            .withAlpha(26), // Fixed: withOpacity(0.1) to withAlpha(26)
+        color: _categoryColor.withAlpha(26),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: _categoryColor
-              .withAlpha(77), // Fixed: withOpacity(0.3) to withAlpha(77)
+          color: _categoryColor.withAlpha(77),
           width: 1,
         ),
       ),
       child: Row(
         children: [
           Container(
-            width: 60,
-            height: 60,
+            width: isMobileLandscape ? 48 : 60,
+            height: isMobileLandscape ? 48 : 60,
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: _categoryColor.withAlpha(
-                      51), // Fixed: withOpacity(0.2) to withAlpha(51)
+                  color: _categoryColor.withAlpha(51),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -459,7 +552,7 @@ class _IBMScreenState extends State<IBMScreen>
               child: Text(
                 _bmi.toStringAsFixed(1),
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: isMobileLandscape ? 16 : 18,
                   fontWeight: FontWeight.bold,
                   color: _categoryColor,
                 ),
@@ -474,7 +567,7 @@ class _IBMScreenState extends State<IBMScreen>
                 Text(
                   _category,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: isMobileLandscape ? 14 : 18,
                     fontWeight: FontWeight.bold,
                     color: _categoryColor,
                   ),
@@ -518,7 +611,7 @@ class _IBMScreenState extends State<IBMScreen>
     );
   }
 
-  Widget _buildNutritionSummary() {
+  Widget _buildNutritionSummary({bool isLandscape = false}) {
     if (_nutritionSummary == null) {
       return GlassCard(
         child: Column(
@@ -720,7 +813,7 @@ class _IBMScreenState extends State<IBMScreen>
     );
   }
 
-  Widget _buildBMIHistory() {
+  Widget _buildBMIHistory({bool isLandscape = false}) {
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

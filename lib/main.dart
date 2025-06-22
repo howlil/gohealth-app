@@ -11,15 +11,17 @@ import 'package:gohealth/providers/notification_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:gohealth/firebase_options.dart';
-import 'package:gohealth/services/notification_manager.dart';
 import 'package:gohealth/services/fcm_service.dart';
 import 'package:gohealth/widgets/app_loading_wrapper.dart';
 import 'package:gohealth/dao/database_helper.dart';
+import 'package:gohealth/utils/env_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Allow all orientations (portrait and landscape)
+
+
+  // x`Allow all orientations (portrait and landscape)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -27,50 +29,41 @@ Future<void> main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // Set up background message handler BEFORE initializing other services
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-  // Initialize local database
   try {
-    final dbHelper = DatabaseHelper();
-    await dbHelper.database; // Initialize database
-    debugPrint('Local SQLite database initialized successfully');
+    // Initialize Firebase
+    debugPrint('Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('Firebase initialized successfully');
+
+    // Set up background message handler BEFORE initializing other services
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+    // Initialize local database
+    debugPrint('Initializing local database...');
+    try {
+      final dbHelper = DatabaseHelper();
+      await dbHelper.database; // Initialize database
+      debugPrint('Local database initialized successfully');
+    } catch (e) {
+      debugPrint('Error initializing database: $e');
+    }
+
+    // Initialize FCM service (single unified service)
+    debugPrint('Initializing FCM service...');
+    final fcmService = FCMService();
+    await fcmService.initialize();
+    debugPrint('FCM service initialized successfully');
+
+    await dotenv.load(fileName: ".env");
+    debugPrint('Environment loaded successfully');
   } catch (e) {
-    debugPrint('Error initializing database: $e');
+    debugPrint('Error during app initialization: $e');
   }
 
-  // Initialize notification services
-  await NotificationManager.instance.initialize();
-
-  // Setup FCM listeners untuk handle semua state
-  await _setupFCMListeners();
-
-  await dotenv.load(fileName: ".env");
-
+  debugPrint('=== GoHealth Started ===');
   runApp(const MyApp());
-}
-
-// Setup FCM listeners untuk handle semua state aplikasi
-Future<void> _setupFCMListeners() async {
-  final fcmService = FCMService();
-
-  // Initialize FCM service
-  await fcmService.initialize();
-
-  // Configure listeners dengan callback yang tepat
-  fcmService.configureFCMListeners(
-    onMessage: (RemoteMessage message) {
-      // Local notification sudah di-handle di FCMService
-    },
-    onMessageOpenedApp: (RemoteMessage message) {
-      // Handle navigation akan diimplementasikan sesuai kebutuhan aplikasi
-    },
-  );
 }
 
 class MyApp extends StatelessWidget {

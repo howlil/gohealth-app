@@ -19,27 +19,52 @@ class AppRouter {
       redirect: (context, state) {
         final isLoggedIn = authProvider.isLoggedIn;
         final isLoading = authProvider.isLoading;
-        final isGoingToLogin = state.matchedLocation == '/login';
-        final isGoingToRegister = state.matchedLocation == '/register';
-        final isGoingToSplash = state.matchedLocation == '/';
+        final currentLocation = state.matchedLocation;
 
-        // Hanya tampilkan splash screen saat sedang loading initial auth check
-        if (isGoingToSplash && isLoading) {
-          return null; // Allow splash screen saat loading
+        // Debug logging
+        debugPrint(
+            'Router redirect - isLoggedIn: $isLoggedIn, isLoading: $isLoading, location: $currentLocation');
+
+        // Allow splash screen ketika masih loading initial check
+        if (currentLocation == '/' && isLoading) {
+          debugPrint('Showing splash screen while loading');
+          return null;
         }
 
-        // Jika sudah selesai loading dan masih di splash, redirect sesuai auth status
-        if (isGoingToSplash && !isLoading) {
-          return isLoggedIn ? '/home' : '/login';
+        // Setelah loading selesai dari splash, redirect ke home/login
+        if (currentLocation == '/' && !isLoading) {
+          final redirectTo = isLoggedIn ? '/home' : '/login';
+          debugPrint('Splash finished, redirecting to: $redirectTo');
+          return redirectTo;
         }
 
-        // Handle auth redirects untuk route lainnya
-        if (!isLoggedIn && !isGoingToLogin && !isGoingToRegister) {
+        // Jangan redirect jika sedang di login/register screen dan belum login
+        // Biarkan user tetap di screen tersebut untuk melihat error/success message
+        if (!isLoggedIn &&
+            (currentLocation == '/login' || currentLocation == '/register')) {
+          debugPrint('Staying on auth screen: $currentLocation');
+          return null;
+        }
+
+        // Redirect ke login jika belum login dan bukan di auth screens
+        if (!isLoggedIn &&
+            currentLocation != '/login' &&
+            currentLocation != '/register') {
+          debugPrint('Redirecting to login from: $currentLocation');
           return '/login';
         }
-        if (isLoggedIn && (isGoingToLogin || isGoingToRegister)) {
-          return '/home';
+
+        // Jika sudah login tapi masih di auth screens, redirect ke home
+        // Tapi tambahkan delay untuk memberi kesempatan success dialog muncul
+        if (isLoggedIn &&
+            (currentLocation == '/login' || currentLocation == '/register')) {
+          debugPrint(
+              'User logged in, will redirect to home from: $currentLocation');
+          // Return null dulu, biar screen handle navigation sendiri
+          return null;
         }
+
+        debugPrint('No redirect needed for: $currentLocation');
         return null;
       },
       routes: [

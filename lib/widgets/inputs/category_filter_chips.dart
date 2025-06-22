@@ -5,89 +5,62 @@ class CategoryFilterChips extends StatelessWidget {
   final List<String> categories;
   final String selectedCategory;
   final Function(String) onCategorySelected;
-  final bool showFavoriteOption;
 
   const CategoryFilterChips({
     super.key,
     required this.categories,
     required this.selectedCategory,
     required this.onCategorySelected,
-    this.showFavoriteOption = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    final allCategories = [
-      'Semua',
-      ...categories,
-      if (showFavoriteOption) 'Favorit',
-    ];
-
+    // Add default categories if not present
+    final allCategories = ['Semua', 'Favorit', ...categories];
+    
     return Container(
-      height: 40,
-      child: ListView.builder(
+      height: 50,
+      child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        itemCount: allCategories.length,
-        itemBuilder: (context, index) {
-          final category = allCategories[index];
-          final isSelected = category == selectedCategory;
-          final isFavorite = category == 'Favorit';
-
-          return Padding(
-            padding: EdgeInsets.only(
-              left: index == 0 ? 0 : 4,
-              right: index == allCategories.length - 1 ? 0 : 4,
-            ),
-            child: FilterChip(
-              label: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isFavorite) ...[
-                    Icon(
-                      Icons.favorite,
-                      size: 16,
-                      color: isSelected ? Colors.white : Colors.red.shade400,
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                  Text(
-                    category,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: isSelected
-                          ? Colors.white
-                          : (isFavorite
-                              ? Colors.red.shade400
-                              : Colors.grey.shade700),
-                    ),
+        physics: const BouncingScrollPhysics(),
+        child: Row(
+          children: allCategories.map((category) {
+            final isSelected = category == selectedCategory;
+            return Container(
+              margin: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: Text(
+                  category,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: isSelected ? Colors.white : AppColors.primary,
                   ),
-                ],
-              ),
-              selected: isSelected,
-              onSelected: (_) => onCategorySelected(category),
-              backgroundColor: Colors.white,
-              selectedColor: isFavorite && isSelected
-                  ? Colors.red.shade400
-                  : AppColors.primary,
-              checkmarkColor: Colors.white,
-              showCheckmark: false,
-              elevation: isSelected ? 3 : 0,
-              pressElevation: 2,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-                side: BorderSide(
-                  color: isSelected
-                      ? (isFavorite ? Colors.red.shade400 : AppColors.primary)
-                      : Colors.grey.shade300,
-                  width: isSelected ? 0 : 1,
                 ),
+                selected: isSelected,
+                onSelected: (selected) {
+                  if (selected) {
+                    onCategorySelected(category);
+                  }
+                },
+                selectedColor: AppColors.primary,
+                backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                checkmarkColor: Colors.white,
+                side: BorderSide(
+                  color: isSelected 
+                    ? AppColors.primary 
+                    : AppColors.primary.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
               ),
-            ),
-          );
-        },
+            );
+          }).toList(),
+        ),
       ),
     );
   }

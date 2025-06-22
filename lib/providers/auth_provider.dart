@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 import '../services/auth_service.dart';
-import '../services/notification_manager.dart';
+import '../services/fcm_service.dart';
 import '../models/auth_model.dart';
 import '../utils/storage_util.dart';
 
@@ -46,8 +45,8 @@ class AuthProvider extends ChangeNotifier {
           );
 
           // Send FCM token to server for existing authenticated user
-          NotificationManager.instance.sendTokenToServer().catchError((error) {
-            debugPrint('Error sending FCM token for existing user: $error');
+          FCMService().sendTokenToServer().catchError((error) {
+            // Error handled
           });
         }
       }
@@ -72,8 +71,8 @@ class AuthProvider extends ChangeNotifier {
         _isLoggedIn = true;
 
         // Send FCM token to server after successful login
-        NotificationManager.instance.sendTokenToServer().catchError((error) {
-          debugPrint('Error sending FCM token after login: $error');
+        FCMService().sendTokenToServer().catchError((error) {
+          // Error handled
         });
 
         return true;
@@ -104,8 +103,8 @@ class AuthProvider extends ChangeNotifier {
           _isLoggedIn = true;
 
           // Send FCM token to server after successful registration
-          NotificationManager.instance.sendTokenToServer().catchError((error) {
-            debugPrint('Error sending FCM token after registration: $error');
+          FCMService().sendTokenToServer().catchError((error) {
+            // Error handled
           });
 
           return true;

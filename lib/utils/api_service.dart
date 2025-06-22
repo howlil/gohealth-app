@@ -25,6 +25,8 @@ class ApiService {
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      'User-Agent': 'GoHealth-Flutter-App/1.0.0',
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
@@ -41,7 +43,12 @@ class ApiService {
       }
       final response = await http.post(
         Uri.parse('${EnvConfig.apiBaseUrl}/api/auth/refresh'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'GoHealth-Flutter-App/1.0.0',
+        },
         body: json.encode({'refreshToken': refreshToken}),
       );
       if (response.statusCode == 200) {
@@ -269,15 +276,53 @@ class ApiService {
   // Handle API response
   Map<String, dynamic> _handleResponse(http.Response response) {
     try {
+      logger.d("Response Status Code: ${response.statusCode}");
+      logger.d("Response Headers: ${response.headers}");
+      logger.d("Raw Response Body: ${response.body}");
+
+      // Check if response body is empty
+      if (response.body.isEmpty) {
+        logger.w("Empty response body received");
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return {
+            "success": true,
+            "data": null,
+            "message": "Success - No content"
+          };
+        } else {
+          return {
+            "success": false,
+            "message":
+                "Empty response with error status: ${response.statusCode}",
+            "statusCode": response.statusCode
+          };
+        }
+      }
+
+      // Try to parse JSON
       final data = jsonDecode(response.body);
+
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return {
           "success": true,
           "data": data['data'],
-          "message": data['message']
+          "message": data['message'] ?? "Success"
         };
       } else {
-        String errorMessage = data["message"] ?? "Unknown error occurred";
+        String errorMessage = "Unknown error occurred";
+
+        // Try to extract error message from different response formats
+        if (data is Map<String, dynamic>) {
+          errorMessage = data["message"] ??
+              data["error"] ??
+              data["errors"]?.toString() ??
+              "Server error: ${response.statusCode}";
+        } else if (data is String) {
+          errorMessage = data;
+        }
+
+        logger.e("API Error: $errorMessage (Status: ${response.statusCode})");
+
         return {
           "success": false,
           "message": errorMessage,
@@ -286,10 +331,28 @@ class ApiService {
       }
     } catch (e) {
       logger.e("Response parsing error: $e");
+      logger.e("Response body that failed to parse: ${response.body}");
+      logger.e("Response status code: ${response.statusCode}");
+
+      // Return more informative error message
+      String errorMessage = "Server response tidak dapat diproses";
+
+      if (response.statusCode == 404) {
+        errorMessage = "Endpoint tidak ditemukan. Silakan coba lagi nanti.";
+      } else if (response.statusCode == 500) {
+        errorMessage = "Terjadi kesalahan server. Silakan coba lagi nanti.";
+      } else if (response.statusCode >= 400 && response.statusCode < 500) {
+        errorMessage = "Permintaan tidak valid. Silakan periksa data Anda.";
+      } else if (response.body.contains("<!DOCTYPE html") ||
+          response.body.contains("<html")) {
+        errorMessage = "Server sedang maintenance. Silakan coba lagi nanti.";
+      }
+
       return {
         "success": false,
-        "message": "Failed to process response",
-        "statusCode": response.statusCode
+        "message": errorMessage,
+        "statusCode": response.statusCode,
+        "rawError": e.toString()
       };
     }
   }

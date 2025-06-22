@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/navigations/app_layout.dart';
 import '../utils/app_colors.dart';
+import '../utils/responsive_helper.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/food/food_item.dart';
 import '../widgets/inputs/nutrient_bar.dart';
@@ -280,119 +281,278 @@ class _FoodScreenState extends State<FoodScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = ResponsiveHelper.isLandscape(context);
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final isMobileLandscape = isMobile && isLandscape;
+
     return AppLayout(
       title: 'Database Makanan Sehat',
       backgroundColor: const Color(0xFFF8F9FA),
       showBackButton: true,
-      child: Stack(
-        children: [
-          // Background gradient bubbles
-          Positioned(
-            top: -100,
-            right: -50,
-            child: Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.primary.withValues(alpha: 0.05),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 150,
-            left: -50,
-            child: Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.secondary.withValues(alpha: 0.05),
-              ),
-            ),
-          ),
+      child:
+          isMobileLandscape ? _buildLandscapeLayout() : _buildPortraitLayout(),
+    );
+  }
 
-          // Main content
-          Column(
-            children: [
-              // Header section dengan flexible sizing
-              Flexible(
-                flex: 0,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: 12),
-                      _buildHeader(),
-                      const SizedBox(height: 12),
-                      _buildQuickStats(),
-                      const SizedBox(height: 12),
-                      ModernSearchField(
-                        controller: _searchController,
-                        onChanged: (value) {
-                          setState(() {});
+  Widget _buildPortraitLayout() {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
+        children: [
+          // Header section
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: const Color(0xFFF8F9FA),
+            child: Column(
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 16),
+                _buildQuickStats(),
+                const SizedBox(height: 16),
+                ModernSearchField(
+                  controller: _searchController,
+                  onChanged: (value) {
+                    setState(() {});
+                    if (_selectedTab != 'Favorit') {
+                      _loadFoods(refresh: true);
+                    }
+                  },
+                  hintText: 'Cari makanan...',
+                ),
+                const SizedBox(height: 16),
+                _isLoadingCategories
+                    ? const Center(child: CircularProgressIndicator())
+                    : CategoryFilterChips(
+                        categories: _categories.map((cat) => cat.name).toList(),
+                        selectedCategory: _selectedTab,
+                        onCategorySelected: (category) {
+                          setState(() {
+                            _selectedTab = category;
+                          });
                           if (_selectedTab != 'Favorit') {
                             _loadFoods(refresh: true);
                           }
                         },
-                        hintText: 'Cari makanan...',
                       ),
-                      const SizedBox(height: 12),
-                      if (_isLoadingCategories)
-                        const SizedBox(
-                          height: 40,
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else
-                        CategoryFilterChips(
-                          categories:
-                              _categories.map((cat) => cat.name).toList(),
-                          selectedCategory: _selectedTab,
-                          onCategorySelected: (category) {
-                            setState(() {
-                              _selectedTab = category;
-                            });
-                            if (_selectedTab != 'Favorit') {
-                              _loadFoods(refresh: true);
-                            }
-                          },
-                        ),
-                      const SizedBox(height: 8),
-                    ],
+              ],
+            ),
+          ),
+
+          // Content section
+          _selectedFood == null ? _buildFoodList() : _buildFoodDetails(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLandscapeLayout() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left side - Header, search, and filters
+        Expanded(
+          flex: 1,
+          child: Container(
+            height: MediaQuery.of(context).size.height,
+            color: const Color(0xFFF8F9FA),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildCompactHeader(),
+                  const SizedBox(height: 12),
+                  ModernSearchField(
+                    controller: _searchController,
+                    onChanged: (value) {
+                      setState(() {});
+                      if (_selectedTab != 'Favorit') {
+                        _loadFoods(refresh: true);
+                      }
+                    },
+                    hintText: 'Cari makanan...',
+                  ),
+                  const SizedBox(height: 16),
+                  _isLoadingCategories
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildVerticalCategoryFilter(),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // Divider
+        Container(
+          width: 1,
+          color: Colors.grey.shade200,
+        ),
+
+        // Right side - Food list and details
+        Expanded(
+          flex: 2,
+          child: Container(
+            height: MediaQuery.of(context).size.height,
+            child: _selectedFood == null
+                ? _buildFoodList(isLandscape: true)
+                : _buildFoodDetails(isLandscape: true),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Database Makanan',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          _selectedTab == 'Favorit'
+              ? '${_favoriteFoods.length} favorit'
+              : _selectedTab == 'Semua'
+                  ? '${_foods.length}+ tersedia'
+                  : '${_filteredFoods.length} makanan',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Compact stats
+        Row(
+          children: [
+            _buildCompactStat(
+              icon: Icons.restaurant_rounded,
+              value: _foods.length.toString(),
+              color: AppColors.primary,
+            ),
+            const SizedBox(width: 8),
+            _buildCompactStat(
+              icon: Icons.category_rounded,
+              value: _categories.length.toString(),
+              color: AppColors.secondary,
+            ),
+            const SizedBox(width: 8),
+            _buildCompactStat(
+              icon: Icons.favorite_rounded,
+              value: _favoriteFoods.length.toString(),
+              color: Colors.red.shade400,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCompactStat({
+    required IconData icon,
+    required String value,
+    required Color color,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.shade200,
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 16),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVerticalCategoryFilter() {
+    final categories = [
+      'Semua',
+      'Favorit',
+      ..._categories.map((cat) => cat.name)
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Kategori',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...categories.map(
+          (category) => Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 4),
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedTab = category;
+                });
+                if (_selectedTab != 'Favorit') {
+                  _loadFoods(refresh: true);
+                }
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _selectedTab == category
+                      ? AppColors.primary.withOpacity(0.1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _selectedTab == category
+                        ? AppColors.primary.withOpacity(0.3)
+                        : Colors.transparent,
+                  ),
+                ),
+                child: Text(
+                  category,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: _selectedTab == category
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+                    color: _selectedTab == category
+                        ? AppColors.primary
+                        : Colors.grey.shade700,
                   ),
                 ),
               ),
-
-              // Daftar makanan dan detail - menggunakan semua ruang yang tersisa
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0.0, 0.02),
-                          end: Offset.zero,
-                        ).animate(CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCubic,
-                        )),
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: _selectedFood == null
-                      ? _buildFoodList()
-                      : _buildFoodDetails(),
-                ),
-              ),
-            ],
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -442,36 +602,35 @@ class _FoodScreenState extends State<FoodScreen> {
   }
 
   Widget _buildQuickStats() {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(
-        maxHeight: 75,
-        minHeight: 65,
-      ),
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _buildStatCard(
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
             icon: Icons.restaurant_rounded,
             label: 'Total Makanan',
             value: _foods.length.toString(),
             color: AppColors.primary,
           ),
-          const SizedBox(width: 12),
-          _buildStatCard(
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildStatCard(
             icon: Icons.category_rounded,
             label: 'Kategori',
             value: _categories.length.toString(),
             color: AppColors.secondary,
           ),
-          const SizedBox(width: 12),
-          _buildStatCard(
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildStatCard(
             icon: Icons.favorite_rounded,
             label: 'Favorit',
             value: _favoriteFoods.length.toString(),
             color: Colors.red.shade400,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -482,8 +641,8 @@ class _FoodScreenState extends State<FoodScreen> {
     required Color color,
   }) {
     return Container(
-      width: 110,
-      padding: const EdgeInsets.all(12),
+      height: 60,
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -495,75 +654,80 @@ class _FoodScreenState extends State<FoodScreen> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              size: 18,
+              size: 16,
               color: color,
             ),
           ),
-          const SizedBox(height: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey.shade600,
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.grey.shade600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFoodList() {
+  Widget _buildFoodList({bool isLandscape = false}) {
     if (_errorMessage != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              _errorMessage!,
-              style: TextStyle(fontSize: 16, color: Colors.red.shade600),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _loadFoods(refresh: true),
-              child: const Text('Coba Lagi'),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _errorMessage!,
+                style: TextStyle(fontSize: 16, color: Colors.red.shade600),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => _loadFoods(refresh: true),
+                child: const Text('Coba Lagi'),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     if (_isLoading && _foods.isEmpty) {
       return ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+        padding: const EdgeInsets.all(16),
         itemCount: 5,
         separatorBuilder: (context, index) => const SizedBox(height: 8),
         itemBuilder: (context, index) => const FoodItemSkeleton(),
@@ -574,62 +738,65 @@ class _FoodScreenState extends State<FoodScreen> {
 
     if (filteredFoods.isEmpty && !_isLoading) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                _selectedTab == 'Favorit'
-                    ? Icons.favorite_border_rounded
-                    : Icons.search_off_rounded,
-                size: 48,
-                color: Colors.grey.shade400,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _selectedTab == 'Favorit'
-                  ? 'Belum ada makanan favorit'
-                  : 'Tidak ada makanan yang ditemukan',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _selectedTab == 'Favorit'
-                  ? 'Tap ikon hati untuk menambahkan favorit'
-                  : 'Coba cari dengan kata kunci lain',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade500,
-              ),
-            ),
-            if (_selectedTab != 'Favorit') ...[
-              const SizedBox(height: 24),
-              TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _selectedTab = 'Semua';
-                    _searchController.clear();
-                  });
-                  _loadFoods(refresh: true);
-                },
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Reset Filter'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.primary,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _selectedTab == 'Favorit'
+                      ? Icons.favorite_border_rounded
+                      : Icons.search_off_rounded,
+                  size: 48,
+                  color: Colors.grey.shade400,
                 ),
               ),
+              const SizedBox(height: 16),
+              Text(
+                _selectedTab == 'Favorit'
+                    ? 'Belum ada makanan favorit'
+                    : 'Tidak ada makanan yang ditemukan',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _selectedTab == 'Favorit'
+                    ? 'Tap ikon hati untuk menambahkan favorit'
+                    : 'Coba cari dengan kata kunci lain',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+              if (_selectedTab != 'Favorit') ...[
+                const SizedBox(height: 24),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _selectedTab = 'Semua';
+                      _searchController.clear();
+                    });
+                    _loadFoods(refresh: true);
+                  },
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Reset Filter'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       );
     }
@@ -645,7 +812,7 @@ class _FoodScreenState extends State<FoodScreen> {
         return false;
       },
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+        padding: const EdgeInsets.all(16),
         itemCount: filteredFoods.length + (_isLoading ? 1 : 0),
         separatorBuilder: (context, index) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
@@ -673,11 +840,11 @@ class _FoodScreenState extends State<FoodScreen> {
     );
   }
 
-  Widget _buildFoodDetails() {
+  Widget _buildFoodDetails({bool isLandscape = false}) {
     final food = _selectedFood!;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -844,36 +1011,33 @@ class _FoodScreenState extends State<FoodScreen> {
 
           const SizedBox(height: 12),
 
-          // Tombol tambahkan ke menu
-          SafeArea(
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () {
-                  // Implementasi untuk menambahkan ke menu
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '${food.name} ditambahkan ke menu harian Anda',
-                      ),
-                      backgroundColor: AppColors.primary,
-                      behavior: SnackBarBehavior.floating,
+          // Add to menu button
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '${food.name} ditambahkan ke menu harian Anda',
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    backgroundColor: AppColors.primary,
+                    behavior: SnackBarBehavior.floating,
                   ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'Tambahkan',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+              ),
+              child: const Text(
+                'Tambahkan',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
           ),

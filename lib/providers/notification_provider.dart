@@ -95,9 +95,18 @@ class NotificationProvider extends ChangeNotifier {
       if (response?.success == true && response?.data != null) {
         _unreadCount = response!.data!.count;
         notifyListeners();
+      } else {
+        // Don't show error to user, just log it
+        debugPrint('Failed to load unread count: ${response?.message}');
+        // Keep existing unread count or set to 0 as fallback
+        _unreadCount = 0;
+        notifyListeners();
       }
     } catch (e) {
       debugPrint('Error loading unread count: $e');
+      // Set fallback value and don't disturb user experience
+      _unreadCount = 0;
+      notifyListeners();
     }
   }
 

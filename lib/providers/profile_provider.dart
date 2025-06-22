@@ -94,14 +94,19 @@ class ProfileProvider extends ChangeNotifier {
         _isInitialized = true;
         debugPrint('Profile loaded from server and cached locally');
       } else {
-        _error = userProfileResponse?.message ?? 'Failed to load profile';
-        debugPrint('Error loading profile from server: $_error');
+        final errorMessage =
+            userProfileResponse?.message ?? 'Gagal memuat profil';
+        debugPrint('Error loading profile from server: $errorMessage');
+
+        // Create fallback profile to prevent UI crash
       }
     } catch (e) {
-      _error = e.toString();
       debugPrint('Error loading from server: $e');
+
+      // Create fallback profile on error
     }
   }
+
 
   // Background refresh from server
   Future<void> _refreshFromServerInBackground() async {

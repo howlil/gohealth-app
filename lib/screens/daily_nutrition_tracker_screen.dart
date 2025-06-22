@@ -9,6 +9,7 @@ import '../models/meal_model.dart';
 import '../services/meal_service.dart';
 import '../widgets/navigations/app_layout.dart';
 import '../utils/app_colors.dart';
+import '../utils/responsive_helper.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/inputs/rounded_input_field.dart';
 import '../widgets/inputs/nutrient_bar.dart';
@@ -653,6 +654,10 @@ class _DailyNutritionTrackerScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape = ResponsiveHelper.isLandscape(context);
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final isMobileLandscape = isMobile && isLandscape;
+
     return AppLayout(
       title: 'Pelacak Gizi Harian',
       backgroundColor: const Color(0xFFF8F9FA),
@@ -686,19 +691,95 @@ class _DailyNutritionTrackerScreenState
             ),
           ),
 
-          // Main content
-          Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+          // Main content - responsive layout
+          if (isMobileLandscape)
+            _buildLandscapeLayout()
+          else
+            _buildPortraitLayout(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPortraitLayout() {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
+        children: [
+          // Add food section - ikut scroll
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                _buildAddFoodSection(),
+                if (_searchResults.isNotEmpty || _isSearching)
+                  _buildSearchResults(),
+                const SizedBox(height: 16),
+                TabSelector(
+                  tabs: _tabs,
+                  selectedIndex: _tabs.indexOf(_activeTab),
+                  onTabSelected: (index) {
+                    setState(() {
+                      _activeTab = _tabs[index];
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+
+          // Main content area - ikut dalam scroll yang sama
+          _isLoading
+              ? Container(
+                  height: 200,
+                  child: const Center(child: CircularProgressIndicator()),
+                )
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    await Future.wait([
+                      _loadMeals(),
+                      _loadDailySummary(),
+                    ]);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: [
+                        _activeTab == 'Ringkasan Gizi'
+                            ? _buildNutritionSummary()
+                            : _buildTodaysFoodList(),
+                        const SizedBox(height: 50),
+                      ],
+                    ),
+                  ),
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLandscapeLayout() {
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left side - Add food section and search
+            Expanded(
+              flex: 1,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 16),
-                    _buildAddFoodSection(),
+                    _buildAddFoodSection(isLandscape: true),
                     if (_searchResults.isNotEmpty || _isSearching)
                       _buildSearchResults(),
                     const SizedBox(height: 16),
+                    // Tab selector for landscape
                     TabSelector(
                       tabs: _tabs,
                       selectedIndex: _tabs.indexOf(_activeTab),
@@ -708,13 +789,22 @@ class _DailyNutritionTrackerScreenState
                         });
                       },
                     ),
-                    const SizedBox(height: 16),
                   ],
                 ),
               ),
+            ),
 
-              // Main content area - scrollable
-              Expanded(
+            // Divider
+            Container(
+              width: 1,
+              color: Colors.grey.shade200,
+            ),
+
+            // Right side - Content
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : RefreshIndicator(
@@ -724,62 +814,87 @@ class _DailyNutritionTrackerScreenState
                             _loadDailySummary(),
                           ]);
                         },
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Column(
-                            children: [
-                              _activeTab == 'Ringkasan Gizi'
-                                  ? _buildNutritionSummary()
-                                  : _buildTodaysFoodList(),
-                              const SizedBox(height: 50),
-                            ],
-                          ),
+                        child: Column(
+                          children: [
+                            _activeTab == 'Ringkasan Gizi'
+                                ? _buildNutritionSummary(isLandscape: true)
+                                : _buildTodaysFoodList(isLandscape: true),
+                            const SizedBox(height: 20),
+                          ],
                         ),
                       ),
               ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildAddFoodSection() {
+  Widget _buildAddFoodSection({bool isLandscape = false}) {
+    final isMobile = ResponsiveHelper.isMobile(context);
+    final isMobileLandscape = isMobile && isLandscape;
+
     return GlassCard(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isMobileLandscape ? 12 : 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Tambah Makanan',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: isMobileLandscape ? 14 : 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: RoundedInputField(
+          SizedBox(height: isMobileLandscape ? 8 : 12),
+          if (isMobileLandscape)
+            // Vertical layout for landscape
+            Column(
+              children: [
+                RoundedInputField(
                   controller: _dateController,
                   hintText: 'Pilih tanggal',
                   readOnly: true,
                   suffixIcon: Icons.calendar_today,
                   onSuffixIconTap: _selectDate,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: RoundedInputField(
+                const SizedBox(height: 8),
+                RoundedInputField(
                   controller: _mealTimeController,
                   hintText: 'Pilih waktu makan',
                   readOnly: true,
                   suffixIcon: Icons.arrow_drop_down,
                   onSuffixIconTap: _selectMealType,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+              ],
+            )
+          else
+            // Horizontal layout for portrait
+            Row(
+              children: [
+                Expanded(
+                  child: RoundedInputField(
+                    controller: _dateController,
+                    hintText: 'Pilih tanggal',
+                    readOnly: true,
+                    suffixIcon: Icons.calendar_today,
+                    onSuffixIconTap: _selectDate,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: RoundedInputField(
+                    controller: _mealTimeController,
+                    hintText: 'Pilih waktu makan',
+                    readOnly: true,
+                    suffixIcon: Icons.arrow_drop_down,
+                    onSuffixIconTap: _selectMealType,
+                  ),
+                ),
+              ],
+            ),
+          SizedBox(height: isMobileLandscape ? 8 : 12),
           Stack(
             children: [
               RoundSearchField(
@@ -851,7 +966,7 @@ class _DailyNutritionTrackerScreenState
     );
   }
 
-  Widget _buildNutritionSummary() {
+  Widget _buildNutritionSummary({bool isLandscape = false}) {
     final today = DateFormat('EEEE, d MMMM yyyy').format(_selectedDate);
 
     // Nilai target
@@ -1099,7 +1214,7 @@ class _DailyNutritionTrackerScreenState
     );
   }
 
-  Widget _buildTodaysFoodList() {
+  Widget _buildTodaysFoodList({bool isLandscape = false}) {
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
