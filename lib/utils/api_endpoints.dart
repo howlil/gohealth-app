@@ -34,7 +34,13 @@ class ApiEndpoints {
   static const String uploadProfileImage = '$users/profile/image';
 
   // Activity endpoints
-  static const String activities = '$baseUrl$exercise/activities';
+  static const String activities = '/api/activities';
+  static const String activityTypes = '/api/activities/types';
+  static const String activitySummary = '/api/activities/summary';
+
+  // Activity Plan endpoints
+  static const String activityPlans = '/api/activity-plans';
+  static const String activityPlansSchedule = '/api/activity-plans/schedule';
 
   // Meal endpoints
   static const String foods = '$meals/foods';

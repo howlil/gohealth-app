@@ -23,6 +23,19 @@ class ResponsiveHelper {
   static bool isLandscape(BuildContext context) =>
       MediaQuery.of(context).orientation == Orientation.landscape;
 
+  // Combined checks
+  static bool isMobileLandscape(BuildContext context) =>
+      isMobile(context) && isLandscape(context);
+
+  static bool isMobilePortrait(BuildContext context) =>
+      isMobile(context) && isPortrait(context);
+
+  static bool isTabletLandscape(BuildContext context) =>
+      isTablet(context) && isLandscape(context);
+
+  static bool isTabletPortrait(BuildContext context) =>
+      isTablet(context) && isPortrait(context);
+
   // Get responsive value based on screen size
   static T getResponsiveValue<T>(
     BuildContext context, {

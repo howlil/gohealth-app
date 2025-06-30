@@ -10,6 +10,7 @@ import '../screens/ibm_screen.dart';
 import '../screens/daily_nutrition_tracker_screen.dart';
 import '../screens/registration_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../screens/activity_screen.dart';
 
 class AppRouter {
   static GoRouter createRouter(AuthProvider authProvider) {
@@ -84,6 +85,10 @@ class AppRouter {
         GoRoute(
           path: '/notifications',
           builder: (context, state) => const NotificationsScreen(),
+        ),
+        GoRoute(
+          path: '/activity',
+          builder: (context, state) => const ActivityScreen(),
         ),
       ],
     );

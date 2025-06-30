@@ -8,3 +8,5 @@ class EnvConfig {
   static const bool isDevelopment = true;
   static const String imageStorageUrl = '$apiBaseUrl/uploads';
 }
+
+

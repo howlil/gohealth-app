@@ -108,6 +108,20 @@ class DataSyncService {
         return false;
       }
 
+      // Check if there are actual changes
+      bool hasChanges = false;
+      if (name != null && name != currentUser.name) hasChanges = true;
+      if (age != null && age != currentUser.age) hasChanges = true;
+      if (height != null && height != currentUser.height) hasChanges = true;
+      if (weight != null && weight != currentUser.weight) hasChanges = true;
+      if (profileImage != null && profileImage != currentUser.profileImage)
+        hasChanges = true;
+
+      if (!hasChanges) {
+        debugPrint('ℹ️ No changes detected for user: $userId');
+        return true; // No changes, but not an error
+      }
+
       // Create updated user
       final updatedUser = currentUser.copyWith(
         name: name ?? currentUser.name,
@@ -116,8 +130,14 @@ class DataSyncService {
         weight: weight ?? currentUser.weight,
         profileImage: profileImage ?? currentUser.profileImage,
         updatedAt: DateTime.now(),
-        isSynced: false, // Mark as not synced
+        isSynced: false, // Mark as not synced only if there are changes
       );
+
+      // Validate data before saving
+      if (updatedUser.name.isEmpty || updatedUser.email.isEmpty) {
+        debugPrint('❌ Invalid user data - name or email is empty');
+        return false;
+      }
 
       // Update local database
       final localSuccess = await _userDao.updateUser(updatedUser);
@@ -130,12 +150,12 @@ class DataSyncService {
       await syncUserDataSources(updatedUser);
 
       // Sync with server aggressively if requested and online
-      if (syncToServer) {
+      if (syncToServer && await hasInternetConnection()) {
         // Try immediate sync
         _syncUserWithServer(updatedUser).then((success) {
           if (!success) {
             debugPrint('⚠️ Immediate sync failed, will retry automatically');
-            // Auto-retry akan terjadi melalui periodic sync dan connectivity monitoring
+            // Auto-retry will happen through periodic sync
           }
         });
       }
@@ -260,8 +280,19 @@ class DataSyncService {
       final unsyncedUsers = await _userDao.getUnsyncedUsers();
       debugPrint('📊 Found ${unsyncedUsers.length} unsynced users');
 
+      if (unsyncedUsers.isEmpty) {
+        debugPrint('✅ No users to sync');
+        return;
+      }
+
       for (final user in unsyncedUsers) {
-        await _syncUserWithServer(user);
+        // Only sync if user has meaningful data
+        if (user.name.isNotEmpty && user.email.isNotEmpty) {
+          await _syncUserWithServer(user);
+        } else {
+          debugPrint(
+              '⚠️ Skipping sync for user with incomplete data: ${user.id}');
+        }
         // Add delay to avoid overwhelming server
         await Future.delayed(const Duration(milliseconds: 500));
       }
@@ -288,16 +319,36 @@ class DataSyncService {
         return false;
       }
 
-      // Convert to UserProfileData format for API
-      final profileData = UserProfileData(
-        id: localUser.id,
-        name: localUser.name,
-        email: localUser.email,
-        age: localUser.age,
-        height: localUser.height,
-        weight: localUser.weight,
-        profileImage: localUser.profileImage,
-      );
+      // Get current profile from server first to preserve existing fields
+      final currentProfileResponse = await _userService.getCurrentUser();
+
+      UserProfileData profileData;
+      if (currentProfileResponse?.success == true &&
+          currentProfileResponse?.data != null) {
+        // Update existing profile with only the fields we have in LocalUser
+        final existingProfile = currentProfileResponse!.data!;
+        profileData = existingProfile.copyWith(
+          name: localUser.name.isNotEmpty ? localUser.name : null,
+          age: localUser.age,
+          height: localUser.height,
+          weight: localUser.weight,
+          profileImage: localUser.profileImage,
+        );
+      } else {
+        // Create new profile with only LocalUser fields
+        profileData = UserProfileData(
+          id: localUser.id,
+          name: localUser.name,
+          email: localUser.email,
+          age: localUser.age,
+          height: localUser.height,
+          weight: localUser.weight,
+          profileImage: localUser.profileImage,
+          // Don't set gender and activityLevel - let them remain null/empty
+        );
+      }
+
+      debugPrint('Syncing profile data: ${profileData.toJson()}');
 
       // Update profile on server
       final response = await _userService.updateProfile(profileData);
@@ -356,21 +407,29 @@ class DataSyncService {
 
   /// Start periodic sync
   void _startPeriodicSync() {
-    // Sync every 2 minutes when app is active (lebih sering untuk otomatis)
-    _periodicSyncTimer = Timer.periodic(const Duration(minutes: 2), (timer) {
+    // Sync every 5 minutes instead of 2 minutes to be less aggressive
+    _periodicSyncTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
       debugPrint('⏰ Periodic sync triggered automatically');
       _syncInBackground();
     });
   }
 
-  /// Background sync (non-blocking) - improved for automatic sync
+  /// Background sync (non-blocking) - improved to be less aggressive
   void _syncInBackground() {
+    // Only sync if not already syncing and has unsynced data
+    if (_isSyncing) {
+      debugPrint('⚠️ Sync already in progress, skipping background sync');
+      return;
+    }
+
     // Sync immediately when data changes or connectivity is restored
     syncUnsyncedUsers().catchError((error) {
       debugPrint('❌ Background sync error: $error');
-      // Retry after 30 seconds if sync fails
-      Future.delayed(const Duration(seconds: 30), () {
-        _syncInBackground();
+      // Retry after 2 minutes if sync fails, less aggressive than before
+      Future.delayed(const Duration(minutes: 2), () {
+        if (!_isSyncing) {
+          _syncInBackground();
+        }
       });
     });
   }

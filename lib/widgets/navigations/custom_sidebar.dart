@@ -146,7 +146,29 @@ class CustomSidebar extends StatelessWidget {
   }
 
   void _handleNavigation(BuildContext context, String route) {
+    // Enhanced navigation protection
+    if (!context.mounted) return;
     if (Navigator.of(context).userGestureInProgress) return;
-    context.go(route);
+
+    // Add debouncing to prevent rapid navigation
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (!context.mounted) return;
+
+      try {
+        context.go(route);
+      } catch (e) {
+        debugPrint('Sidebar navigation error: $e');
+        // Fallback navigation
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (context.mounted) {
+            try {
+              context.go(route);
+            } catch (e) {
+              debugPrint('Sidebar fallback navigation also failed: $e');
+            }
+          }
+        });
+      }
+    });
   }
 }

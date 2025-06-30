@@ -67,22 +67,27 @@ class _ProfileScreenState extends State<ProfileScreen>
       final profileProvider =
           Provider.of<ProfileProvider>(context, listen: false);
 
+      // Force re-initialization to ensure fresh data
+      profileProvider.clearState(); // Clear any cached state
+
       // Initialize profile if not already initialized
-      if (!profileProvider.isInitialized) {
-        await profileProvider.initializeProfile();
-      }
+      await profileProvider.initializeProfile();
 
       // Update controllers with profile data
       final profile = profileProvider.profile;
       if (profile != null) {
         setState(() {
-          _nameController.text = profile.name;
+          _nameController.text = profile.name ?? '';
           _ageController.text = profile.age.toString();
           _heightController.text = profile.height.toString();
           _weightController.text = profile.weight.toString();
-          _gender = profile.gender;
-          _activityLevel = profile.activityLevel;
+          _gender = profile.gender ?? 'MALE';
+          _activityLevel = profile.activityLevel ?? 'MODERATELY_ACTIVE';
         });
+
+        debugPrint('Profile data loaded for: ${profile.email}');
+      } else {
+        debugPrint('No profile data available');
       }
     } catch (e) {
       debugPrint('Error loading profile data: $e');
@@ -101,6 +106,55 @@ class _ProfileScreenState extends State<ProfileScreen>
           _isLoading = false;
         });
       }
+    }
+  }
+
+  // Add method to clear cache and reload
+  Future<void> _clearCacheAndReload() async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Membersihkan cache...'),
+            ],
+          ),
+        ),
+      );
+
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final profileProvider =
+          Provider.of<ProfileProvider>(context, listen: false);
+
+      // Clear old data
+      await authProvider.clearOldUserData(); // Use the new method
+
+      // Clear profile provider state
+      profileProvider.clearState();
+
+      // Reload profile data
+      await _loadProfileData();
+
+      Navigator.of(context).pop(); // Close loading dialog
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cache berhasil dibersihkan dan data di-reload'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      Navigator.of(context).pop(); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -454,7 +508,14 @@ class _ProfileScreenState extends State<ProfileScreen>
       backgroundColor: const Color(0xFFF8F9FA),
       showBackButton: true,
       currentIndex: 2,
-      actions: [],
+      actions: [
+        // Debug button to clear cache and reload
+        IconButton(
+          icon: Icon(Icons.refresh),
+          onPressed: _clearCacheAndReload,
+          tooltip: 'Clear Cache & Reload',
+        ),
+      ],
       child: Consumer<ProfileProvider>(
         builder: (context, profileProvider, _) {
           // Show skeleton loading

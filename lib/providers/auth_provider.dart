@@ -2,13 +2,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/fcm_service.dart';
-// import '../services/data_sync_service.dart'; // DISABLED temporarily
+import '../services/data_sync_service.dart';
 import '../models/auth_model.dart';
 import '../utils/storage_util.dart';
+import '../dao/user_dao.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
-  // final DataSyncService _dataSyncService = DataSyncService(); // DISABLED temporarily
+  final DataSyncService _dataSyncService = DataSyncService();
+  final UserDao _userDao = UserDao();
 
   AuthModel? _user;
   bool _isLoading = false;
@@ -52,6 +54,15 @@ class AuthProvider extends ChangeNotifier {
             refreshToken: await StorageUtil.getRefreshToken() ?? '',
           );
 
+          // Initialize data sync service
+          try {
+            await _dataSyncService.initialize();
+            debugPrint(
+                '✅ AuthProvider: Data sync service initialized for existing session');
+          } catch (e) {
+            debugPrint('⚠️ AuthProvider: Data sync initialization failed: $e');
+          }
+
           // FCM token will be sent when user reaches homepage
           debugPrint(
               '✅ AuthProvider: User already authenticated, FCM token will be sent from homepage');
@@ -66,6 +77,23 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // Clear old user data
+  Future<void> clearOldUserData() async {
+    try {
+      debugPrint('🗑️ AuthProvider: Clearing old user data');
+
+      // Clear local database
+      await _userDao.clearAllData();
+
+      // Clear SharedPreferences user data (but keep tokens)
+      await StorageUtil.clearUserData();
+
+      debugPrint('✅ AuthProvider: Old user data cleared');
+    } catch (e) {
+      debugPrint('❌ AuthProvider: Error clearing old data: $e');
+    }
+  }
+
   // Login with email and password
   Future<bool> login(String email, String password) async {
     _setLoading(true);
@@ -73,6 +101,9 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       debugPrint('🔄 AuthProvider: Starting login process for $email');
+
+      // Clear old user data first
+      await clearOldUserData();
 
       final user = await _authService
           .login(email, password)
@@ -83,13 +114,13 @@ class AuthProvider extends ChangeNotifier {
         _user = user;
         _isLoggedIn = true;
 
-        // Initialize data sync service after successful login - DISABLED temporarily
-        // try {
-        //   await _dataSyncService.initialize();
-        //   debugPrint('✅ AuthProvider: Data sync service initialized');
-        // } catch (e) {
-        //   debugPrint('⚠️ AuthProvider: Data sync initialization failed: $e');
-        // }
+        // Initialize data sync service after successful login
+        try {
+          await _dataSyncService.initialize();
+          debugPrint('✅ AuthProvider: Data sync service initialized');
+        } catch (e) {
+          debugPrint('⚠️ AuthProvider: Data sync initialization failed: $e');
+        }
 
         // FCM token will be sent when user reaches homepage
         debugPrint(
@@ -125,6 +156,9 @@ class AuthProvider extends ChangeNotifier {
     try {
       debugPrint('🔄 AuthProvider: Starting registration process for $email');
 
+      // Clear old user data first
+      await clearOldUserData();
+
       final user = await _authService
           .register(name, email, password)
           .timeout(const Duration(seconds: 30));
@@ -139,13 +173,15 @@ class AuthProvider extends ChangeNotifier {
           _user = user;
           _isLoggedIn = true;
 
-          // Initialize data sync service after successful registration - DISABLED temporarily
-          // try {
-          //   await _dataSyncService.initialize();
-          //   debugPrint('✅ AuthProvider: Data sync service initialized after registration');
-          // } catch (e) {
-          //   debugPrint('⚠️ AuthProvider: Data sync initialization failed after registration: $e');
-          // }
+          // Initialize data sync service after successful registration
+          try {
+            await _dataSyncService.initialize();
+            debugPrint(
+                '✅ AuthProvider: Data sync service initialized after registration');
+          } catch (e) {
+            debugPrint(
+                '⚠️ AuthProvider: Data sync initialization failed after registration: $e');
+          }
 
           // FCM token will be sent when user reaches homepage
           debugPrint(
@@ -193,11 +229,14 @@ class AuthProvider extends ChangeNotifier {
           await _authService.logout().timeout(const Duration(seconds: 30));
 
       if (success) {
+        // Clear old user data
+        await clearOldUserData();
+
         _user = null;
         _isLoggedIn = false;
 
-        // Dispose data sync service - DISABLED temporarily
-        // _dataSyncService.dispose();
+        // Dispose data sync service
+        _dataSyncService.dispose();
 
         return true;
       } else {

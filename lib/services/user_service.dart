@@ -61,15 +61,36 @@ class UserService {
 
   Future<UserProfileResponse?> updateProfile(UserProfileData profile) async {
     try {
-      // Convert model to API request format
-      final Map<String, dynamic> requestBody = {
-        'name': profile.name,
-        'age': profile.age,
-        'gender': profile.gender,
-        'height': profile.height,
-        'weight': profile.weight,
-        'activityLevel': profile.activityLevel,
-      };
+      // Convert model to API request format - only include non-null fields
+      final Map<String, dynamic> requestBody = {};
+
+      // Always include name as it's likely required
+      if (profile.name.isNotEmpty) {
+        requestBody['name'] = profile.name;
+      }
+
+      // Only include optional fields if they have valid values
+      if (profile.age != null && profile.age! > 0) {
+        requestBody['age'] = profile.age;
+      }
+
+      if (profile.gender != null && profile.gender!.isNotEmpty) {
+        requestBody['gender'] = profile.gender;
+      }
+
+      if (profile.height != null && profile.height! > 0) {
+        requestBody['height'] = profile.height;
+      }
+
+      if (profile.weight != null && profile.weight! > 0) {
+        requestBody['weight'] = profile.weight;
+      }
+
+      if (profile.activityLevel != null && profile.activityLevel!.isNotEmpty) {
+        requestBody['activityLevel'] = profile.activityLevel;
+      }
+
+      debugPrint('UpdateProfile request body: $requestBody');
 
       final response = await _apiService.put(
         ApiEndpoints.users + '/profile',
@@ -84,6 +105,7 @@ class UserService {
           data: UserProfileData.fromJson(response['data']),
         );
       } else {
+        debugPrint('UpdateProfile failed: ${response['message']}');
         return UserProfileResponse(
           success: false,
           message: response['message'] ?? 'Failed to update profile',

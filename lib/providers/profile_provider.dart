@@ -7,6 +7,7 @@ import '../models/local_user_model.dart';
 import '../services/user_service.dart';
 import '../services/local_user_service.dart';
 import '../services/data_sync_service.dart';
+import '../dao/user_dao.dart';
 import '../utils/http_exception.dart';
 import 'base_provider.dart';
 
@@ -14,6 +15,7 @@ class ProfileProvider extends BaseProvider {
   final UserService _userService = UserService();
   final LocalUserService _localUserService = LocalUserService();
   final DataSyncService _dataSyncService = DataSyncService();
+  final UserDao _userDao = UserDao();
 
   Profile? _profile;
   bool _isInitialized = false;
@@ -32,26 +34,23 @@ class ProfileProvider extends BaseProvider {
     try {
       debugPrint('Initializing profile...');
 
-      // DataSync service akan bekerja otomatis tanpa callback manual
-
-      // Try to get user using the unified sync service
-      final localUser = await _dataSyncService.getCurrentUser();
-
-      if (localUser != null) {
-        // Convert LocalUser to Profile
-        _profile = _localUserToProfile(localUser);
-        _isInitialized = true;
-        debugPrint('Profile initialized from local storage');
-        setSuccess('Profil berhasil dimuat dari cache lokal');
-
-        // Try to refresh from server in background if online
-        if (await _dataSyncService.hasInternetConnection()) {
-          _refreshFromServerInBackground();
-        }
+      // Force refresh from server to ensure we have the latest data for current user
+      if (await _dataSyncService.hasInternetConnection()) {
+        await _loadFromServer();
       } else {
-        // Fallback to server if no local data and online
-        if (await _dataSyncService.hasInternetConnection()) {
-          await _loadFromServer();
+        // Only use local data if no internet connection
+        final localUser = await _dataSyncService.getCurrentUser();
+        if (localUser != null) {
+          // Validate that local user matches current session
+          final session = await _userDao.getActiveSession();
+          if (session != null && localUser.id == session.userId) {
+            _profile = _localUserToProfile(localUser);
+            _isInitialized = true;
+            debugPrint('Profile initialized from validated local storage');
+            setSuccess('Profil dimuat dari cache lokal');
+          } else {
+            setError('Data lokal tidak cocok dengan sesi aktif');
+          }
         } else {
           setError('Tidak ada koneksi internet dan data lokal tidak ditemukan');
         }
@@ -67,13 +66,15 @@ class ProfileProvider extends BaseProvider {
   // Load profile from server and save locally
   Future<void> _loadFromServer() async {
     try {
+      debugPrint('Loading profile from server...');
+
       final userProfileResponse = await _userService.getCurrentUser();
 
       if (userProfileResponse?.success == true &&
           userProfileResponse?.data != null) {
         final userData = userProfileResponse!.data;
 
-        // Save to local storage
+        // Save to local storage with proper session validation
         await _localUserService.saveUserLocally(
           id: userData.id,
           name: userData.name ?? '',
@@ -100,7 +101,8 @@ class ProfileProvider extends BaseProvider {
         );
 
         _isInitialized = true;
-        debugPrint('Profile loaded from server and cached locally');
+        debugPrint(
+            'Profile loaded from server and cached locally for user: ${userData.email}');
         setSuccess('Profil berhasil dimuat dari server');
       } else {
         final errorMessage =
@@ -114,32 +116,14 @@ class ProfileProvider extends BaseProvider {
     }
   }
 
-  // Background refresh from server
-  Future<void> _refreshFromServerInBackground() async {
-    try {
-      debugPrint('Refreshing profile from server in background...');
-
-      final localUser = await _dataSyncService.loadUserFromServer();
-      if (localUser != null) {
-        _profile = _localUserToProfile(localUser);
-        notifyListeners();
-        debugPrint('Profile refreshed from server using DataSyncService');
-        // Don't show snackbar for background refresh
-      }
-    } catch (e) {
-      debugPrint('Background refresh failed: $e');
-      // Don't show error to user for background refresh
-    }
-  }
-
-  // Convert LocalUser to Profile model
+  // Convert LocalUser to Profile model with validation
   Profile _localUserToProfile(LocalUser localUser) {
     return Profile(
       id: localUser.id,
       name: localUser.name,
       email: localUser.email,
       photoUrl: localUser.profileImage,
-      gender: 'MALE', // Default value since LocalUser doesn't have gender
+      gender: 'MALE', // Default value since LocalUser doesn't have gender field
       age: localUser.age ?? 25,
       height: localUser.height ?? 170.0,
       weight: localUser.weight ?? 70.0,
@@ -155,29 +139,67 @@ class ProfileProvider extends BaseProvider {
     clearMessages();
 
     try {
-      if (updatedProfile.id == null) {
-        debugPrint('Profile ID is null, cannot update');
+      if (updatedProfile.id == null || updatedProfile.id!.isEmpty) {
+        debugPrint('Profile ID is null or empty, cannot update');
         setError('ID profil tidak valid, tidak dapat memperbarui profil');
         return false;
       }
 
-      // Use DataSyncService for unified update
-      final success = await _dataSyncService.updateUserData(
+      debugPrint('Updating profile for user: ${updatedProfile.id}');
+
+      // First, try to update via API
+      bool serverUpdateSuccess = false;
+      if (await _dataSyncService.hasInternetConnection()) {
+        try {
+          // Convert Profile to UserProfileData for API
+          final profileData = UserProfileData(
+            id: updatedProfile.id!,
+            name: updatedProfile.name,
+            email: updatedProfile.email,
+            age: updatedProfile.age,
+            height: updatedProfile.height,
+            weight: updatedProfile.weight,
+            gender: updatedProfile.gender,
+            activityLevel: updatedProfile.activityLevel,
+          );
+
+          final response = await _userService.updateProfile(profileData);
+          serverUpdateSuccess = response?.success == true;
+
+          if (serverUpdateSuccess) {
+            debugPrint('✅ Profile updated successfully on server');
+          } else {
+            debugPrint('⚠️ Server update failed: ${response?.message}');
+          }
+        } catch (e) {
+          debugPrint('⚠️ Server update error: $e');
+        }
+      }
+
+      // Update local storage regardless (for offline capability)
+      final localUpdateSuccess = await _dataSyncService.updateUserData(
         userId: updatedProfile.id!,
         name: updatedProfile.name,
         age: updatedProfile.age,
         height: updatedProfile.height,
         weight: updatedProfile.weight,
         profileImage: updatedProfile.photoUrl,
-        syncToServer: true,
+        syncToServer:
+            !serverUpdateSuccess, // Only queue for sync if server update failed
       );
 
-      if (success) {
+      if (localUpdateSuccess) {
         // Update local profile state immediately
         _profile = updatedProfile;
         notifyListeners();
-        debugPrint('Profile updated successfully using DataSyncService');
-        setSuccess('Profil berhasil diperbarui');
+
+        if (serverUpdateSuccess) {
+          debugPrint('✅ Profile updated successfully (server + local)');
+          setSuccess('Profil berhasil diperbarui');
+        } else {
+          debugPrint('✅ Profile updated locally, will sync to server later');
+          setSuccess('Profil berhasil diperbarui secara lokal');
+        }
         return true;
       } else {
         setError('Gagal memperbarui profil. Silakan coba lagi.');
@@ -316,6 +338,15 @@ class ProfileProvider extends BaseProvider {
       _profile = _profile!.copyWith(goal: goal);
       notifyListeners();
     }
+  }
+
+  // Clear provider state (for debugging and reloading)
+  void clearState() {
+    _profile = null;
+    _isInitialized = false;
+    clearMessages();
+    notifyListeners();
+    debugPrint('ProfileProvider state cleared');
   }
 
   // DataSync bekerja otomatis, tidak perlu callback manual lagi

@@ -57,12 +57,32 @@ class CustomBottomNavBar extends StatelessWidget {
 
     final routes = ['/home', '/nutrition', '/profile'];
 
-    // Prevent navigation if already navigating
+    // Prevent navigation if already navigating or if context is not mounted
+    if (!context.mounted) return;
     if (Navigator.of(context).userGestureInProgress) return;
 
-    // Using context.go instead of context.goNamed for better stability
-    if (index >= 0 && index < routes.length) {
-      context.go(routes[index]);
-    }
+    // Add debouncing to prevent rapid taps
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (!context.mounted) return;
+
+      // Using context.go instead of context.goNamed for better stability
+      if (index >= 0 && index < routes.length) {
+        try {
+          context.go(routes[index]);
+        } catch (e) {
+          debugPrint('Navigation error: $e');
+          // Fallback navigation
+          Future.delayed(const Duration(milliseconds: 50), () {
+            if (context.mounted) {
+              try {
+                context.go(routes[index]);
+              } catch (e) {
+                debugPrint('Fallback navigation also failed: $e');
+              }
+            }
+          });
+        }
+      }
+    });
   }
 }

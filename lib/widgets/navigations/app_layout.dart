@@ -242,14 +242,34 @@ class AppLayout extends StatelessWidget {
     );
   }
 
-
   void _handleBackNavigation(BuildContext context) {
+    // Enhanced back navigation protection
+    if (!context.mounted) return;
     if (Navigator.of(context).userGestureInProgress) return;
 
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/home');
-    }
+    // Add debouncing to prevent rapid back navigation
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (!context.mounted) return;
+
+      try {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+      } catch (e) {
+        debugPrint('Back navigation error: $e');
+        // Fallback navigation
+        Future.delayed(const Duration(milliseconds: 50), () {
+          if (context.mounted) {
+            try {
+              context.go('/home');
+            } catch (e) {
+              debugPrint('Back navigation fallback also failed: $e');
+            }
+          }
+        });
+      }
+    });
   }
 }

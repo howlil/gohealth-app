@@ -79,6 +79,13 @@ class StorageUtil {
     // await prefs.remove(_keyUser);
   }
 
+  // Clear user data but keep auth tokens
+  static Future<void> clearUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyUser);
+    debugPrint('✅ User data cleared from SharedPreferences');
+  }
+
   // Check if token has expired (usually based on JWT payload)
   static bool isTokenExpired(String token) {
     try {

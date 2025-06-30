@@ -692,26 +692,66 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildActionCards() {
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: ActionGlassCard(
-            title: 'BMI',
-            subtitle: 'Control Your Weight',
-            icon: Icons.monitor_weight_outlined,
-            color: AppColors.secondary,
-            onTap: () => context.go('/bmi'),
-          ),
+        // First row - BMI and Food
+        Row(
+          children: [
+            Expanded(
+              child: ActionGlassCard(
+                title: 'BMI',
+                subtitle: 'Control Your Weight',
+                icon: Icons.monitor_weight_outlined,
+                color: AppColors.secondary,
+                onTap: () => context.go('/bmi'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ActionGlassCard(
+                title: 'Food',
+                subtitle: 'Healthy Food List',
+                icon: Icons.restaurant_outlined,
+                color: AppColors.primary,
+                onTap: () => context.go('/food'),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ActionGlassCard(
-            title: 'Food',
-            subtitle: 'Healthy Food List',
-            icon: Icons.restaurant_outlined,
-            color: AppColors.primary,
-            onTap: () => context.go('/food'),
-          ),
+
+        const SizedBox(height: 12),
+
+        // Second row - Activity
+        Row(
+          children: [
+            Expanded(
+              child: ActionGlassCard(
+                title: 'Aktivitas',
+                subtitle: 'Track Your Activities',
+                icon: Icons.fitness_center_outlined,
+                color: AppColors.accent1,
+                onTap: () => context.go('/activity'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Coming Soon feature card
+            Expanded(
+              child: ComingSoonGlassCard(
+                title: 'Consultation',
+                subtitle: 'Expert Health Advice',
+                icon: Icons.medical_services_outlined,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Fitur Konsultasi segera hadir!'),
+                      backgroundColor: Colors.orange,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );

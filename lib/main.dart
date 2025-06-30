@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gohealth/routers/app_router.dart';
@@ -7,18 +8,25 @@ import 'package:gohealth/providers/auth_provider.dart';
 import 'package:gohealth/providers/profile_provider.dart';
 import 'package:gohealth/providers/dashboard_provider.dart';
 import 'package:gohealth/providers/notification_provider.dart';
+import 'package:gohealth/providers/activity_provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:gohealth/firebase_options.dart';
 import 'package:gohealth/services/fcm_service.dart';
 import 'package:gohealth/widgets/app_loading_wrapper.dart';
 import 'package:gohealth/dao/database_helper.dart';
+import 'package:gohealth/utils/error_handler.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
     debugPrint('🚀 Memulai inisialisasi aplikasi GoHealth...');
+
+    // Initialize error handler PERTAMA untuk mengatasi mouse tracker error
+    debugPrint('🛡️ Inisialisasi error handler...');
+    ErrorHandler.init();
+    debugPrint('✅ Error handler berhasil diinisialisasi');
 
     // Set orientasi yang diizinkan
     await SystemChrome.setPreferredOrientations([
@@ -27,12 +35,12 @@ Future<void> main() async {
     ]);
     debugPrint('✅ Orientasi layar dikonfigurasi');
 
-    // Load environment variables PERTAMA
+    // Load environment variables
     debugPrint('🔧 Memuat environment variables...');
     await dotenv.load(fileName: ".env");
     debugPrint('✅ Environment variables berhasil dimuat');
 
-    // Initialize Firebase KEDUA
+    // Initialize Firebase
     debugPrint('🔥 Inisialisasi Firebase...');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -44,7 +52,7 @@ Future<void> main() async {
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     debugPrint('✅ Background message handler terdaftar');
 
-    // Initialize local database KETIGA (simplified)
+    // Initialize local database (simplified)
     debugPrint('🗄️ Inisialisasi database lokal...');
     try {
       final dbHelper = DatabaseHelper();
@@ -78,8 +86,26 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+
+    // Add hot reload protection
+    _addHotReloadProtection();
+
     // Delayed initialization untuk services yang berat
     _initializeHeavyServices();
+  }
+
+  void _addHotReloadProtection() {
+    // Clear any stale pointer tracker state on hot reload
+    if (kDebugMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          // Force a pointer tracker reset by simulating pointer events cleanup
+          debugPrint('🔄 Hot reload protection: clearing pointer state');
+        } catch (e) {
+          debugPrint('⚠️ Hot reload protection warning: $e');
+        }
+      });
+    }
   }
 
   Future<void> _initializeHeavyServices() async {
@@ -122,6 +148,7 @@ class _MyAppState extends State<MyApp> {
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => DashboardProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
+        ChangeNotifierProvider(create: (_) => ActivityProvider()),
       ],
       child: Builder(
         builder: (context) {

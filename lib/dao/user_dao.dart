@@ -285,4 +285,24 @@ class UserDao {
     final user = await getUserById(userId);
     return user != null;
   }
+
+  // Clear all user data and sessions
+  Future<void> clearAllData() async {
+    final db = await _databaseHelper.database;
+
+    try {
+      await db.transaction((txn) async {
+        // Clear all user sessions
+        await txn.delete('user_sessions');
+        
+        // Clear all users
+        await txn.delete('users');
+      });
+      
+      debugPrint('✅ All user data and sessions cleared from database');
+    } catch (e) {
+      debugPrint('❌ Error clearing all data: $e');
+      rethrow;
+    }
+  }
 }
