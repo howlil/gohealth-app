@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
@@ -18,99 +19,175 @@ class AuthService {
 
   // Login with email and password
   Future<AuthModel?> login(String email, String password) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/login'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'ngrok-skip-browser-warning': 'true',
-          'User-Agent': 'GoHealth-Flutter-App/1.0.0',
-        },
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
-      );
+    // Coba beberapa kemungkinan endpoint dengan timeout
+    final List<String> possibleEndpoints = [
+      '/auth/login', // Tanpa /api prefix
+      '/api/auth/login', // Dengan /api prefix
+      '/login', // Langsung ke /login
+    ];
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
+    String lastError = '';
 
-        if (responseData['success'] == true && responseData['data'] != null) {
-          final authModel = AuthModel.fromJson(responseData['data']);
+    // Try endpoints one by one (not concurrently) to reduce memory load
+    for (String endpoint in possibleEndpoints) {
+      try {
+        final loginUrl = '$_baseUrl$endpoint';
+        debugPrint('🔗 AuthService trying login URL: $loginUrl');
+        debugPrint('📤 AuthService login data: email=$email');
 
-          // Save auth data to storage
-          await StorageUtil.setAccessToken(authModel.token);
-          await StorageUtil.setRefreshToken(authModel.refreshToken);
-          await StorageUtil.setUserData({
-            'id': authModel.id,
-            'name': authModel.name,
-            'email': authModel.email,
-            'profileImage': authModel.profileImage,
-          });
-          await StorageUtil.setLoggedIn(true);
+        final response = await http
+            .post(
+          Uri.parse(loginUrl),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+            'User-Agent': 'GoHealth-Flutter-App/1.0.0',
+          },
+          body: jsonEncode({
+            'email': email,
+            'password': password,
+          }),
+        )
+            .timeout(
+          const Duration(seconds: 10), // Reduced timeout
+          onTimeout: () {
+            throw TimeoutException('Request timeout for endpoint: $endpoint');
+          },
+        );
 
-          return authModel;
+        debugPrint(
+            '📊 AuthService login response status: ${response.statusCode}');
+        debugPrint(
+            '📥 AuthService login response body: ${response.body.length > 200 ? response.body.substring(0, 200) + "..." : response.body}');
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final responseData = jsonDecode(response.body);
+
+          if (responseData['success'] == true && responseData['data'] != null) {
+            final authModel = AuthModel.fromJson(responseData['data']);
+
+            // Save auth data to storage
+            await StorageUtil.setAccessToken(authModel.token);
+            await StorageUtil.setRefreshToken(authModel.refreshToken);
+            await StorageUtil.setUserData({
+              'id': authModel.id,
+              'name': authModel.name,
+              'email': authModel.email,
+              'profileImage': authModel.profileImage,
+            });
+            await StorageUtil.setLoggedIn(true);
+
+            debugPrint(
+                '✅ AuthService: Login successful with endpoint: $endpoint');
+            return authModel;
+          } else {
+            debugPrint(
+                '❌ AuthService: Login response missing data or success flag');
+            debugPrint('   Response structure: ${responseData.keys.toList()}');
+          }
+        } else if (response.statusCode == 404) {
+          // 404 berarti endpoint tidak ditemukan, coba endpoint berikutnya
+          debugPrint(
+              '⚠️ AuthService: Endpoint $endpoint not found (404), trying next...');
+          lastError = 'Endpoint $endpoint not found';
+
+          // Add small delay before trying next endpoint to prevent overwhelming server
+          await Future.delayed(const Duration(milliseconds: 500));
+          continue;
+        } else {
+          // Error lain selain 404, tidak perlu coba endpoint lain
+          lastError =
+              'AuthService Login failed (${response.statusCode}): ${response.body}';
+          debugPrint('❌ $lastError');
+          break;
         }
-      }
+      } on TimeoutException catch (e) {
+        debugPrint('⏰ AuthService login timeout with endpoint $endpoint: $e');
+        lastError = 'Timeout: $e';
+        continue;
+      } catch (e) {
+        debugPrint('❌ AuthService login error with endpoint $endpoint: $e');
+        lastError = 'Network error: $e';
 
-      // Handle error response
-      final errorMessage = response.statusCode == 200
-          ? 'Login failed: ${response.body}'
-          : 'Login failed: ${response.statusCode} ${response.reasonPhrase}';
-      debugPrint(errorMessage);
-      return null;
-    } catch (e) {
-      debugPrint('Login error: $e');
-      return null;
+        // Add delay before trying next endpoint
+        await Future.delayed(const Duration(milliseconds: 500));
+        continue;
+      }
     }
+
+    // Jika semua endpoint gagal
+    debugPrint(
+        '❌ AuthService: All login endpoints failed. Last error: $lastError');
+    return null;
   }
 
   // Register new account
   Future<AuthModel?> register(
       String name, String email, String password) async {
-    try {
-      final response = await http.post(
-        Uri.parse(
-            '$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/register'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'ngrok-skip-browser-warning': 'true',
-          'User-Agent': 'GoHealth-Flutter-App/1.0.0',
-        },
-        body: jsonEncode({
-          'name': name,
-          'email': email,
-          'password': password,
-        }),
-      );
+    // Coba beberapa kemungkinan endpoint dengan timeout
+    final List<String> possibleEndpoints = [
+      '/auth/register', // Tanpa /api prefix
+      '/api/auth/register', // Dengan /api prefix
+      '/register', // Langsung ke /register
+    ];
 
-      if (response.statusCode == 201) {
-        final responseData = jsonDecode(response.body);
+    String lastError = '';
 
-        if (responseData['success'] == true && responseData['data'] != null) {
-          final userData = responseData['data'];
+    // Try endpoints one by one (not concurrently) to reduce memory load
+    for (String endpoint in possibleEndpoints) {
+      try {
+        final registerUrl = '$_baseUrl$endpoint';
+        debugPrint('🔗 AuthService trying register URL: $registerUrl');
+        debugPrint('📤 AuthService register data: name=$name, email=$email');
 
-          // After successful registration, automatically login to get tokens
-          debugPrint('Registration successful, now logging in...');
-          final authModel = await login(email, password);
+        final response = await http
+            .post(
+          Uri.parse(registerUrl),
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+            'User-Agent': 'GoHealth-Flutter-App/1.0.0',
+          },
+          body: jsonEncode({
+            'name': name,
+            'email': email,
+            'password': password,
+          }),
+        )
+            .timeout(
+          const Duration(seconds: 10), // Reduced timeout
+          onTimeout: () {
+            throw TimeoutException('Request timeout for endpoint: $endpoint');
+          },
+        );
 
-          if (authModel != null) {
-            return authModel;
-          } else {
-            // If auto-login fails, create AuthModel with empty tokens for now
-            // User will need to login manually
+        debugPrint(
+            '📊 AuthService register response status: ${response.statusCode}');
+        debugPrint(
+            '📥 AuthService register response body: ${response.body.length > 200 ? response.body.substring(0, 200) + "..." : response.body}');
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final responseData = jsonDecode(response.body);
+
+          if (responseData['success'] == true && responseData['data'] != null) {
+            final userData = responseData['data'];
+
             debugPrint(
-                'Auto-login after registration failed, creating temporary auth model');
+                '✅ AuthService: Registration successful with endpoint: $endpoint');
+
+            // Jangan auto-login setelah register, biarkan user tetap di halaman register
+            debugPrint(
+                '✅ AuthService: Registration successful, creating temp auth model');
 
             final tempAuthModel = AuthModel(
               id: userData['id']?.toString() ?? '',
               name: userData['name']?.toString() ?? '',
               email: userData['email']?.toString() ?? '',
               profileImage: userData['profileImage']?.toString(),
-              token: '', // Temporary empty token
-              refreshToken: '', // Temporary empty token
+              token: '', // Kosongkan token agar tidak auto-login
+              refreshToken: '', // Kosongkan refresh token
               age: userData['age'] as int?,
               gender: userData['gender']?.toString(),
               height: userData['height'] != null
@@ -128,31 +205,58 @@ class AuthService {
                   : null,
             );
 
-            // Save minimal user data to storage
+            // Jangan save ke storage sebagai logged in user
             await StorageUtil.setUserData({
               'id': tempAuthModel.id,
               'name': tempAuthModel.name,
               'email': tempAuthModel.email,
               'profileImage': tempAuthModel.profileImage,
             });
-            // Don't set as logged in since we don't have valid tokens
-            await StorageUtil.setLoggedIn(false);
+            await StorageUtil.setLoggedIn(
+                false); // Penting: set false agar tidak auto-login
 
             return tempAuthModel;
+          } else {
+            debugPrint(
+                '❌ AuthService: Registration response missing data or success flag');
+            debugPrint('   Response structure: ${responseData.keys.toList()}');
           }
-        }
-      }
+        } else if (response.statusCode == 404) {
+          // 404 berarti endpoint tidak ditemukan, coba endpoint berikutnya
+          debugPrint(
+              '⚠️ AuthService: Endpoint $endpoint not found (404), trying next...');
+          lastError = 'Endpoint $endpoint not found';
 
-      // Handle error response
-      final errorMessage = response.statusCode == 201
-          ? 'Registration failed: ${response.body}'
-          : 'Registration failed: ${response.statusCode} ${response.reasonPhrase}';
-      debugPrint(errorMessage);
-      return null;
-    } catch (e) {
-      debugPrint('Registration error: $e');
-      return null;
+          // Add small delay before trying next endpoint
+          await Future.delayed(const Duration(milliseconds: 500));
+          continue;
+        } else {
+          // Error lain selain 404, tidak perlu coba endpoint lain
+          lastError =
+              'AuthService Registration failed (${response.statusCode}): ${response.body}';
+          debugPrint('❌ $lastError');
+          break;
+        }
+      } on TimeoutException catch (e) {
+        debugPrint(
+            '⏰ AuthService registration timeout with endpoint $endpoint: $e');
+        lastError = 'Timeout: $e';
+        continue;
+      } catch (e) {
+        debugPrint(
+            '❌ AuthService registration error with endpoint $endpoint: $e');
+        lastError = 'Network error: $e';
+
+        // Add delay before trying next endpoint
+        await Future.delayed(const Duration(milliseconds: 500));
+        continue;
+      }
     }
+
+    // Jika semua endpoint gagal
+    debugPrint(
+        '❌ AuthService: All registration endpoints failed. Last error: $lastError');
+    return null;
   }
 
   // Logout
@@ -163,18 +267,21 @@ class AuthService {
       if (token != null) {
         // Call logout API endpoint if available
         try {
+          final logoutUrl = '$_baseUrl${ApiEndpoints.logout}';
+          debugPrint('🔗 AuthService logout URL: $logoutUrl');
+
           await http.post(
-            Uri.parse(
-                '$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/logout'),
+            Uri.parse(logoutUrl),
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
               'Authorization': 'Bearer $token',
             },
           );
+          debugPrint('✅ AuthService: Logout API called');
         } catch (e) {
           // Ignore errors from logout API, proceed with local logout
-          debugPrint('Logout API error: $e');
+          debugPrint('⚠️ AuthService logout API error: $e');
         }
       }
 
@@ -182,9 +289,10 @@ class AuthService {
       await StorageUtil.clearAuthData();
       await StorageUtil.setLoggedIn(false);
 
+      debugPrint('✅ AuthService: Local logout completed');
       return true;
     } catch (e) {
-      debugPrint('Logout error: $e');
+      debugPrint('❌ AuthService logout error: $e');
       return false;
     }
   }
@@ -192,9 +300,11 @@ class AuthService {
   // Refresh token
   Future<String?> refreshToken(String refreshToken) async {
     try {
+      final refreshUrl = '$_baseUrl${ApiEndpoints.refreshToken}';
+      debugPrint('🔗 AuthService refresh token URL: $refreshUrl');
+
       final response = await http.post(
-        Uri.parse(
-            '$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/refresh'),
+        Uri.parse(refreshUrl),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -203,6 +313,11 @@ class AuthService {
           'refreshToken': refreshToken,
         }),
       );
+
+      debugPrint(
+          '📊 AuthService refresh token response status: ${response.statusCode}');
+      debugPrint(
+          '📥 AuthService refresh token response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
@@ -217,15 +332,16 @@ class AuthService {
             await StorageUtil.setRefreshToken(newRefreshToken);
           }
 
+          debugPrint('✅ AuthService: Token refreshed successfully');
           return newAccessToken;
         }
       }
 
       debugPrint(
-          'Token refresh failed: ${response.statusCode} ${response.reasonPhrase}');
+          '❌ AuthService token refresh failed: ${response.statusCode} ${response.reasonPhrase}');
       return null;
     } catch (e) {
-      debugPrint('Token refresh error: $e');
+      debugPrint('❌ AuthService token refresh error: $e');
       return null;
     }
   }
@@ -235,36 +351,51 @@ class AuthService {
     final token = await StorageUtil.getAccessToken();
     final isLoggedIn = await StorageUtil.isLoggedIn();
 
+    debugPrint(
+        '🔍 AuthService checking authentication: token=${token != null ? 'exists' : 'null'}, isLoggedIn=$isLoggedIn');
+
     if (token == null || !isLoggedIn) {
+      debugPrint(
+          '❌ AuthService: Not authenticated - missing token or not logged in');
       return false;
     }
 
     // Check if token is expired
     if (StorageUtil.isTokenExpired(token)) {
+      debugPrint('⚠️ AuthService: Token expired, attempting refresh...');
       // Try to refresh token
       final refreshToken = await StorageUtil.getRefreshToken();
       if (refreshToken == null) {
+        debugPrint('❌ AuthService: No refresh token available');
         return false;
       }
 
       final newToken = await this.refreshToken(refreshToken);
-      return newToken != null;
+      final isRefreshed = newToken != null;
+      debugPrint('🔄 AuthService: Token refresh result: $isRefreshed');
+      return isRefreshed;
     }
 
+    debugPrint('✅ AuthService: User is authenticated');
     return true;
   }
 
   // Get current user from storage
   Future<Map<String, dynamic>?> getCurrentUser() async {
-    return StorageUtil.getUserData();
+    final userData = await StorageUtil.getUserData();
+    debugPrint(
+        '👤 AuthService getCurrentUser: ${userData != null ? 'found' : 'null'}');
+    return userData;
   }
 
   // Reset password request
   Future<bool> requestPasswordReset(String email) async {
     try {
+      final forgotPasswordUrl = '$_baseUrl${ApiEndpoints.forgotPassword}';
+      debugPrint('🔗 AuthService forgot password URL: $forgotPasswordUrl');
+
       final response = await http.post(
-        Uri.parse(
-            '$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/forgot-password'),
+        Uri.parse(forgotPasswordUrl),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -274,9 +405,11 @@ class AuthService {
         }),
       );
 
+      debugPrint(
+          '📊 AuthService forgot password response status: ${response.statusCode}');
       return response.statusCode == 200;
     } catch (e) {
-      debugPrint('Password reset request error: $e');
+      debugPrint('❌ AuthService password reset request error: $e');
       return false;
     }
   }
@@ -284,9 +417,11 @@ class AuthService {
   // Reset password with token
   Future<bool> resetPassword(String token, String password) async {
     try {
+      final resetPasswordUrl = '$_baseUrl${ApiEndpoints.resetPassword}';
+      debugPrint('🔗 AuthService reset password URL: $resetPasswordUrl');
+
       final response = await http.post(
-        Uri.parse(
-            '$_baseUrl${ApiEndpoints.baseUrl}${ApiEndpoints.auth}/reset-password'),
+        Uri.parse(resetPasswordUrl),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -297,9 +432,11 @@ class AuthService {
         }),
       );
 
+      debugPrint(
+          '📊 AuthService reset password response status: ${response.statusCode}');
       return response.statusCode == 200;
     } catch (e) {
-      debugPrint('Password reset error: $e');
+      debugPrint('❌ AuthService password reset error: $e');
       return false;
     }
   }

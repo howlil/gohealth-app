@@ -6,53 +6,61 @@ import '../models/user_profile_model.dart';
 import '../models/local_user_model.dart';
 import '../services/user_service.dart';
 import '../services/local_user_service.dart';
+import '../services/data_sync_service.dart';
 import '../utils/http_exception.dart';
+import 'base_provider.dart';
 
-class ProfileProvider extends ChangeNotifier {
+class ProfileProvider extends BaseProvider {
   final UserService _userService = UserService();
   final LocalUserService _localUserService = LocalUserService();
+  final DataSyncService _dataSyncService = DataSyncService();
 
   Profile? _profile;
-  bool _isLoading = false;
-  String? _error;
   bool _isInitialized = false;
 
   // Getters
   Profile? get profile => _profile;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
   bool get isInitialized => _isInitialized;
 
   // Initialize profile from local storage or API
   Future<void> initializeProfile() async {
     if (_isInitialized) return;
 
-    _setLoading(true);
-    _clearError();
+    setLoading(true);
+    clearMessages();
 
     try {
       debugPrint('Initializing profile...');
 
-      // Try to get user from local storage first
-      final localUser = await _localUserService.getUserProfile();
+      // DataSync service akan bekerja otomatis tanpa callback manual
+
+      // Try to get user using the unified sync service
+      final localUser = await _dataSyncService.getCurrentUser();
 
       if (localUser != null) {
         // Convert LocalUser to Profile
         _profile = _localUserToProfile(localUser);
         _isInitialized = true;
         debugPrint('Profile initialized from local storage');
+        setSuccess('Profil berhasil dimuat dari cache lokal');
 
-        // Try to refresh from server in background
-        _refreshFromServerInBackground();
+        // Try to refresh from server in background if online
+        if (await _dataSyncService.hasInternetConnection()) {
+          _refreshFromServerInBackground();
+        }
       } else {
-        // Fallback to server if no local data
-        await _loadFromServer();
+        // Fallback to server if no local data and online
+        if (await _dataSyncService.hasInternetConnection()) {
+          await _loadFromServer();
+        } else {
+          setError('Tidak ada koneksi internet dan data lokal tidak ditemukan');
+        }
       }
     } catch (e) {
-      _error = e.toString();
+      setError('Gagal memuat profil: ${e.toString()}');
       debugPrint('Error initializing profile: $e');
     } finally {
-      _setLoading(false);
+      setLoading(false);
     }
   }
 
@@ -93,31 +101,30 @@ class ProfileProvider extends ChangeNotifier {
 
         _isInitialized = true;
         debugPrint('Profile loaded from server and cached locally');
+        setSuccess('Profil berhasil dimuat dari server');
       } else {
         final errorMessage =
-            userProfileResponse?.message ?? 'Gagal memuat profil';
+            userProfileResponse?.message ?? 'Gagal memuat profil dari server';
         debugPrint('Error loading profile from server: $errorMessage');
-
-        // Create fallback profile to prevent UI crash
+        setError(errorMessage);
       }
     } catch (e) {
       debugPrint('Error loading from server: $e');
-
-      // Create fallback profile on error
+      setError('Gagal terhubung ke server: ${e.toString()}');
     }
   }
-
 
   // Background refresh from server
   Future<void> _refreshFromServerInBackground() async {
     try {
       debugPrint('Refreshing profile from server in background...');
 
-      final localUser = await _localUserService.loadUserFromServer();
+      final localUser = await _dataSyncService.loadUserFromServer();
       if (localUser != null) {
         _profile = _localUserToProfile(localUser);
         notifyListeners();
-        debugPrint('Profile refreshed from server');
+        debugPrint('Profile refreshed from server using DataSyncService');
+        // Don't show snackbar for background refresh
       }
     } catch (e) {
       debugPrint('Background refresh failed: $e');
@@ -144,96 +151,81 @@ class ProfileProvider extends ChangeNotifier {
 
   // Update profile via API and local storage
   Future<bool> updateProfile(Profile updatedProfile) async {
-    _setLoading(true);
-    _clearError();
+    setLoading(true);
+    clearMessages();
 
     try {
-      // Update local storage first (for instant UI update)
-      if (updatedProfile.id != null) {
-        await _localUserService.updateUserProfile(
-          userId: updatedProfile.id!,
-          name: updatedProfile.name,
-          age: updatedProfile.age,
-          height: updatedProfile.height,
-          weight: updatedProfile.weight,
-          profileImage: updatedProfile.photoUrl,
-        );
-
-        // Update local profile state
-        _profile = updatedProfile;
-        notifyListeners();
-        debugPrint('Profile updated in local storage');
+      if (updatedProfile.id == null) {
+        debugPrint('Profile ID is null, cannot update');
+        setError('ID profil tidak valid, tidak dapat memperbarui profil');
+        return false;
       }
 
-      // Then sync with server (local service will handle sync automatically)
-      // Convert Profile to UserProfileData for server update
-      final userProfileData = UserProfileData(
-        id: updatedProfile.id ?? '',
+      // Use DataSyncService for unified update
+      final success = await _dataSyncService.updateUserData(
+        userId: updatedProfile.id!,
         name: updatedProfile.name,
-        email: updatedProfile.email,
         age: updatedProfile.age,
         height: updatedProfile.height,
         weight: updatedProfile.weight,
-        gender: updatedProfile.gender,
-        activityLevel: updatedProfile.activityLevel,
         profileImage: updatedProfile.photoUrl,
-        bmr: updatedProfile.bmr,
-        tdee: updatedProfile.tdee,
+        syncToServer: true,
       );
 
-      try {
-        final response = await _userService.updateProfile(userProfileData);
-        if (response?.success == true) {
-          debugPrint('Profile synced with server successfully');
-        } else {
-          debugPrint('Failed to sync with server: ${response?.message}');
-          // Still return true because local update succeeded
-        }
-      } catch (serverError) {
-        debugPrint('Server sync failed: $serverError');
-        // Still return true because local update succeeded
+      if (success) {
+        // Update local profile state immediately
+        _profile = updatedProfile;
+        notifyListeners();
+        debugPrint('Profile updated successfully using DataSyncService');
+        setSuccess('Profil berhasil diperbarui');
+        return true;
+      } else {
+        setError('Gagal memperbarui profil. Silakan coba lagi.');
+        return false;
       }
-
-      return true;
     } catch (e) {
-      _error = e.toString();
+      setError('Terjadi kesalahan saat memperbarui profil: ${e.toString()}');
       debugPrint('Error updating profile: $e');
       return false;
     } finally {
-      _setLoading(false);
+      setLoading(false);
     }
   }
 
   // Update profile photo via API
   Future<bool> updateProfilePhoto(XFile photo) async {
-    _setLoading(true);
-    _clearError();
+    setLoading(true);
+    clearMessages();
 
     try {
       final file = File(photo.path);
       final response = await _userService.uploadProfileImage(file);
+
       if (response?.success == true && response?.data != null) {
         _profile = _profile?.copyWith(photoUrl: response!.data);
         debugPrint('Profile photo updated successfully');
+        setSuccess('Foto profil berhasil diperbarui');
         return true;
       } else {
-        _error = response?.message ?? 'Failed to upload image';
-        debugPrint('Error updating profile photo: $_error');
+        final errorMessage =
+            response?.message ?? 'Gagal mengupload foto profil';
+        debugPrint('Error updating profile photo: $errorMessage');
+        setError(errorMessage);
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      setError('Terjadi kesalahan saat mengupload foto: ${e.toString()}');
       debugPrint('Error updating profile photo: $e');
       return false;
     } finally {
-      _setLoading(false);
+      setLoading(false);
     }
   }
 
   // Refresh profile data
   Future<void> refreshProfile() async {
-    _setLoading(true);
-    _clearError();
+    setLoading(true);
+    clearMessages();
 
     try {
       debugPrint('Refreshing profile...');
@@ -260,18 +252,21 @@ class ProfileProvider extends ChangeNotifier {
         );
 
         debugPrint('Profile refreshed successfully');
+        setSuccess('Profil berhasil diperbarui dari server');
       } else {
-        _error = userProfileResponse?.message ?? 'Failed to refresh profile';
-        debugPrint('Error refreshing profile: $_error');
+        final errorMessage = userProfileResponse?.message ??
+            'Gagal memperbarui profil dari server';
+        debugPrint('Error refreshing profile: $errorMessage');
+        setError(errorMessage);
       }
     } on HttpException catch (e) {
-      _error = e.message;
+      setError('Error HTTP: ${e.message}');
       debugPrint('HTTP error refreshing profile: $e');
     } catch (e) {
-      _error = e.toString();
+      setError('Terjadi kesalahan saat memperbarui profil: ${e.toString()}');
       debugPrint('Error refreshing profile: $e');
     } finally {
-      _setLoading(false);
+      setLoading(false);
     }
   }
 
@@ -323,15 +318,5 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  // Clear error
-  void _clearError() {
-    _error = null;
-    notifyListeners();
-  }
-
-  // Helper method to set loading state
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
+  // DataSync bekerja otomatis, tidak perlu callback manual lagi
 }

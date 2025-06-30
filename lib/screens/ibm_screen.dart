@@ -9,6 +9,7 @@ import '../widgets/inputs/tab_selector.dart';
 import '../models/ibm_history.dart';
 import '../services/bmi_service.dart';
 import '../widgets/bmi/weight_goal_card.dart';
+import '../widgets/loading_skeleton.dart';
 
 class IBMScreen extends StatefulWidget {
   const IBMScreen({super.key});
@@ -307,7 +308,15 @@ class _IBMScreenState extends State<IBMScreen>
               width: MediaQuery.of(context).size.width,
               height: MediaQuery.of(context).size.height,
               child: const Center(
-                child: CircularProgressIndicator(),
+                child: SizedBox(
+                  width: 60,
+                  height: 60,
+                  child: LoadingSkeleton(
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                  ),
+                ),
               ),
             ),
         ],
@@ -580,21 +589,6 @@ class _IBMScreenState extends State<IBMScreen>
     );
   }
 
-  String _getBMIMessageByStatus(String status) {
-    switch (status.toUpperCase()) {
-      case 'UNDERWEIGHT':
-        return 'BMI di bawah rentang normal. Pertimbangkan untuk berkonsultasi dengan ahli gizi.';
-      case 'NORMAL':
-        return 'BMI berada dalam rentang normal. Pertahankan pola hidup sehat Anda!';
-      case 'OVERWEIGHT':
-        return 'BMI sedikit di atas rentang normal. Pertimbangkan untuk lebih aktif bergerak.';
-      case 'OBESE':
-        return 'BMI jauh di atas rentang normal. Konsultasikan dengan profesional kesehatan.';
-      default:
-        return 'Status BMI tidak diketahui.';
-    }
-  }
-
   Widget _buildTabControl() {
     return TabSelector(
       tabs: const ['Ringkasan Gizi', 'Target Berat', 'Riwayat BMI'],
@@ -835,11 +829,9 @@ class _IBMScreenState extends State<IBMScreen>
           ),
           const SizedBox(height: 16),
           if (_isLoadingHistory)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(),
-              ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: BMIHistorySkeleton(itemCount: 3),
             )
           else if (_errorMessage != null)
             Center(
@@ -1091,11 +1083,9 @@ class _IBMScreenState extends State<IBMScreen>
                       if (index == _bmiHistory.length) {
                         if (_hasMoreData) {
                           _loadBMIHistory();
-                          return const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(16.0),
-                              child: CircularProgressIndicator(),
-                            ),
+                          return Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: BMIHistorySkeleton(itemCount: 1),
                           );
                         }
                         return const SizedBox.shrink();

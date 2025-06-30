@@ -289,59 +289,82 @@ class _FoodScreenState extends State<FoodScreen> {
       title: 'Database Makanan Sehat',
       backgroundColor: const Color(0xFFF8F9FA),
       showBackButton: true,
-      child:
-          isMobileLandscape ? _buildLandscapeLayout() : _buildPortraitLayout(),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (isMobileLandscape) {
+            return _buildLandscapeLayout();
+          } else {
+            return _buildPortraitLayout();
+          }
+        },
+      ),
     );
   }
 
   Widget _buildPortraitLayout() {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Column(
-        children: [
-          // Header section
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: const Color(0xFFF8F9FA),
-            child: Column(
-              children: [
-                _buildHeader(),
-                const SizedBox(height: 16),
-                _buildQuickStats(),
-                const SizedBox(height: 16),
-                ModernSearchField(
-                  controller: _searchController,
-                  onChanged: (value) {
-                    setState(() {});
-                    if (_selectedTab != 'Favorit') {
-                      _loadFoods(refresh: true);
-                    }
-                  },
-                  hintText: 'Cari makanan...',
-                ),
-                const SizedBox(height: 16),
-                _isLoadingCategories
-                    ? const Center(child: CircularProgressIndicator())
-                    : CategoryFilterChips(
-                        categories: _categories.map((cat) => cat.name).toList(),
-                        selectedCategory: _selectedTab,
-                        onCategorySelected: (category) {
-                          setState(() {
-                            _selectedTab = category;
-                          });
-                          if (_selectedTab != 'Favorit') {
-                            _loadFoods(refresh: true);
-                          }
-                        },
+    return Column(
+      children: [
+        // Header section
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: const Color(0xFFF8F9FA),
+          child: Column(
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 16),
+              _buildQuickStats(),
+              const SizedBox(height: 16),
+              ModernSearchField(
+                controller: _searchController,
+                onChanged: (value) {
+                  setState(() {});
+                  if (_selectedTab != 'Favorit') {
+                    _loadFoods(refresh: true);
+                  }
+                },
+                hintText: 'Cari makanan...',
+              ),
+              const SizedBox(height: 16),
+              _isLoadingCategories
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: List.generate(
+                          3,
+                          (index) => Expanded(
+                            child: Padding(
+                              padding:
+                                  EdgeInsets.only(right: index < 2 ? 8 : 0),
+                              child: LoadingSkeleton(
+                                height: 32,
+                                borderRadius: 16,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-              ],
-            ),
+                    )
+                  : CategoryFilterChips(
+                      categories: _categories.map((cat) => cat.name).toList(),
+                      selectedCategory: _selectedTab,
+                      onCategorySelected: (category) {
+                        setState(() {
+                          _selectedTab = category;
+                        });
+                        if (_selectedTab != 'Favorit') {
+                          _loadFoods(refresh: true);
+                        }
+                      },
+                    ),
+            ],
           ),
+        ),
 
-          // Content section
-          _selectedFood == null ? _buildFoodList() : _buildFoodDetails(),
-        ],
-      ),
+        // Content section
+        Expanded(
+          child: _selectedFood == null ? _buildFoodList() : _buildFoodDetails(),
+        ),
+      ],
     );
   }
 
@@ -350,10 +373,9 @@ class _FoodScreenState extends State<FoodScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Left side - Header, search, and filters
-        Expanded(
-          flex: 1,
+        SizedBox(
+          width: 300, // Fixed width untuk left panel
           child: Container(
-            height: MediaQuery.of(context).size.height,
             color: const Color(0xFFF8F9FA),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -374,7 +396,22 @@ class _FoodScreenState extends State<FoodScreen> {
                   ),
                   const SizedBox(height: 16),
                   _isLoadingCategories
-                      ? const Center(child: CircularProgressIndicator())
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Column(
+                            children: List.generate(
+                              4,
+                              (index) => Padding(
+                                padding:
+                                    EdgeInsets.only(bottom: index < 3 ? 4 : 0),
+                                child: LoadingSkeleton(
+                                  height: 36,
+                                  borderRadius: 8,
+                                ),
+                              ),
+                            ),
+                          ),
+                        )
                       : _buildVerticalCategoryFilter(),
                 ],
               ),
@@ -390,13 +427,9 @@ class _FoodScreenState extends State<FoodScreen> {
 
         // Right side - Food list and details
         Expanded(
-          flex: 2,
-          child: Container(
-            height: MediaQuery.of(context).size.height,
-            child: _selectedFood == null
-                ? _buildFoodList(isLandscape: true)
-                : _buildFoodDetails(isLandscape: true),
-          ),
+          child: _selectedFood == null
+              ? _buildFoodList(isLandscape: true)
+              : _buildFoodDetails(isLandscape: true),
         ),
       ],
     );
@@ -727,6 +760,10 @@ class _FoodScreenState extends State<FoodScreen> {
 
     if (_isLoading && _foods.isEmpty) {
       return ListView.separated(
+        shrinkWrap: isLandscape, // Add shrinkWrap for landscape
+        physics: isLandscape
+            ? const NeverScrollableScrollPhysics()
+            : const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         itemCount: 5,
         separatorBuilder: (context, index) => const SizedBox(height: 8),
@@ -812,6 +849,10 @@ class _FoodScreenState extends State<FoodScreen> {
         return false;
       },
       child: ListView.separated(
+        shrinkWrap: isLandscape, // Add shrinkWrap for landscape
+        physics: isLandscape
+            ? const NeverScrollableScrollPhysics()
+            : const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         itemCount: filteredFoods.length + (_isLoading ? 1 : 0),
         separatorBuilder: (context, index) => const SizedBox(height: 8),

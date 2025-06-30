@@ -3,10 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import '../models/meal_type.dart';
+import 'package:provider/provider.dart';
 import '../models/food_model.dart';
 import '../models/meal_model.dart';
 import '../services/meal_service.dart';
+import '../services/user_service.dart';
+import '../providers/dashboard_provider.dart';
 import '../widgets/navigations/app_layout.dart';
 import '../utils/app_colors.dart';
 import '../utils/responsive_helper.dart';
@@ -16,6 +18,7 @@ import '../widgets/inputs/nutrient_bar.dart';
 import '../widgets/inputs/round_search_field.dart';
 import '../widgets/inputs/tab_selector.dart';
 import '../widgets/nutrition/food_search_result.dart';
+import '../widgets/loading_skeleton.dart';
 
 class DailyNutritionTrackerScreen extends StatefulWidget {
   const DailyNutritionTrackerScreen({super.key});
@@ -34,6 +37,7 @@ class _DailyNutritionTrackerScreenState
   final TextEditingController _unitController = TextEditingController();
 
   final MealService _mealService = MealService();
+  final UserService _userService = UserService();
 
   DateTime _selectedDate = DateTime.now();
   String _activeTab = 'Ringkasan Gizi';
@@ -297,7 +301,15 @@ class _DailyNutritionTrackerScreenState
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(
-        child: CircularProgressIndicator(),
+        child: SizedBox(
+          width: 60,
+          height: 60,
+          child: LoadingSkeleton(
+            width: 60,
+            height: 60,
+            borderRadius: 30,
+          ),
+        ),
       ),
     );
 
@@ -514,8 +526,24 @@ class _DailyNutritionTrackerScreenState
           setState(() {
             _searchController.clear();
           });
-          _loadMeals();
-          _loadDailySummary();
+
+          // Reload data first
+          await Future.wait([
+            _loadMeals(),
+            _loadDailySummary(),
+          ]);
+
+          // Refresh dashboard data for updated calories chart
+          if (mounted) {
+            final dashboardProvider = context.read<DashboardProvider>();
+            final dateStr = _formatDateToDDMMYYYY(_selectedDate);
+            debugPrint('🔄 Refreshing dashboard after meal added');
+            debugPrint('🔄 Using date format: $dateStr for dashboard refresh');
+            await dashboardProvider.refreshDataForDate(dateStr);
+          }
+
+          // Check achievement after data reload
+          await _checkCalorieAchievementAfterMeal();
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -552,6 +580,38 @@ class _DailyNutritionTrackerScreenState
           'Terjadi kesalahan jaringan. Silakan coba lagi.',
         );
       }
+    }
+  }
+
+  /// Check calorie achievement after meal is added/updated
+  Future<void> _checkCalorieAchievementAfterMeal() async {
+    try {
+      if (_dailySummary == null) return;
+
+      debugPrint('🔥 Checking achievement after meal update...');
+
+      // Get user's calorie target from dashboard
+      final dashboardResponse = await _userService.getDashboardData(
+        date: _formatDateToDDMMYYYY(_selectedDate),
+      );
+
+      if (dashboardResponse?.success == true &&
+          dashboardResponse?.data != null) {
+        final dashboardData = dashboardResponse!.data as Map<String, dynamic>;
+        final calories = dashboardData['calories'] as Map<String, dynamic>;
+
+        final caloriesTarget = (calories['target'] as num).toDouble();
+        final caloriesConsumed = _dailySummary!.totalCalories;
+
+        debugPrint('🔥 Current consumption: ${caloriesConsumed.toInt()} kcal');
+        debugPrint('🔥 Target: ${caloriesTarget.toInt()} kcal');
+        debugPrint(
+            '🔥 Achievement check will be handled by server notifications');
+      } else {
+        debugPrint('🔥 Failed to get dashboard data for achievement check');
+      }
+    } catch (e) {
+      debugPrint('🔥 Error checking achievement after meal: $e');
     }
   }
 
@@ -733,10 +793,7 @@ class _DailyNutritionTrackerScreenState
 
           // Main content area - ikut dalam scroll yang sama
           _isLoading
-              ? Container(
-                  height: 200,
-                  child: const Center(child: CircularProgressIndicator()),
-                )
+              ? const NutritionSummarySkeleton()
               : RefreshIndicator(
                   onRefresh: () async {
                     await Future.wait([
@@ -806,7 +863,7 @@ class _DailyNutritionTrackerScreenState
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const NutritionSummarySkeleton()
                     : RefreshIndicator(
                         onRefresh: () async {
                           await Future.wait([
@@ -1641,6 +1698,9 @@ class _DailyNutritionTrackerScreenState
             _loadMeals(),
             _loadDailySummary(),
           ]);
+
+          // Check achievement after data reload
+          await _checkCalorieAchievementAfterMeal();
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

@@ -7,7 +7,6 @@ import 'package:gohealth/services/registration_service.dart';
 import 'package:gohealth/widgets/auth/auth_error_widget.dart';
 import 'package:gohealth/widgets/inputs/rounded_input_field.dart';
 import 'package:gohealth/widgets/rounded_button.dart';
-import 'package:gohealth/widgets/navigations/responsive_layout.dart';
 import 'package:gohealth/utils/app_colors.dart';
 import 'package:gohealth/utils/env_config.dart';
 import 'package:gohealth/utils/responsive_helper.dart';
@@ -131,7 +130,7 @@ class _RegistrationScreenState extends State<RegistrationScreen>
       if (!mounted) return;
 
       debugPrint(
-          'Registration result: success=$success, isLoggedIn=${authProvider.isLoggedIn}');
+          'Registration result: success=$success, isLoggedIn=${authProvider.isLoggedIn}, error=${authProvider.error}');
 
       if (success) {
         // Registration berhasil
@@ -151,17 +150,53 @@ class _RegistrationScreenState extends State<RegistrationScreen>
             context.go('/home');
           }
         } else {
-          // Registration berhasil tapi perlu login manual
-          debugPrint('Registration successful, but need manual login');
+          // Registration berhasil tapi tidak auto-login - TETAP DI HALAMAN REGISTER
+          debugPrint('Registration successful, staying on register page');
+
+          // Reset form setelah registrasi berhasil
+          _resetForm();
+
+          // Tampilkan dialog success tanpa navigate
           await _showSuccessDialog(
             title: '✅ Registrasi Berhasil!',
             message:
-                'Akun Anda berhasil dibuat.\nSilakan login untuk melanjutkan.',
+                'Akun Anda berhasil dibuat!\nAnda dapat mendaftar lagi atau masuk ke halaman login.',
           );
 
+          // Tampilkan snackbar dengan opsi untuk ke login
           if (mounted) {
-            debugPrint('Navigating to login after registration success');
-            context.go('/login');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle,
+                        color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                          'Registrasi berhasil! Silakan login jika diperlukan.'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        context.go('/login');
+                      },
+                      child: const Text('LOGIN',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                margin: const EdgeInsets.all(10),
+                duration: const Duration(seconds: 8),
+              ),
+            );
           }
         }
       } else {
@@ -176,13 +211,22 @@ class _RegistrationScreenState extends State<RegistrationScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(_errorMessage ?? 'Registrasi gagal'),
+              content: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(_errorMessage ?? 'Registrasi gagal'),
+                  ),
+                ],
+              ),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
               margin: const EdgeInsets.all(10),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -196,13 +240,22 @@ class _RegistrationScreenState extends State<RegistrationScreen>
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_errorMessage ?? 'Terjadi kesalahan'),
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_errorMessage ?? 'Terjadi kesalahan'),
+                ),
+              ],
+            ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
             margin: const EdgeInsets.all(10),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -890,5 +943,19 @@ class _RegistrationScreenState extends State<RegistrationScreen>
         );
       },
     );
+  }
+
+  // Method untuk reset form setelah registrasi berhasil
+  void _resetForm() {
+    _formKey.currentState?.reset();
+    _nameController.clear();
+    _emailController.clear();
+    _passwordController.clear();
+    _confirmPasswordController.clear();
+    _ageController.clear();
+    setState(() {
+      _gender = null;
+      _errorMessage = null;
+    });
   }
 }

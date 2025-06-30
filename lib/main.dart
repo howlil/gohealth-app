@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:gohealth/routers/app_router.dart';
 import 'package:provider/provider.dart';
@@ -14,60 +13,106 @@ import 'package:gohealth/firebase_options.dart';
 import 'package:gohealth/services/fcm_service.dart';
 import 'package:gohealth/widgets/app_loading_wrapper.dart';
 import 'package:gohealth/dao/database_helper.dart';
-import 'package:gohealth/utils/env_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-
-
-  // x`Allow all orientations (portrait and landscape)
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
-  ]);
-
   try {
-    // Initialize Firebase
-    debugPrint('Initializing Firebase...');
+    debugPrint('🚀 Memulai inisialisasi aplikasi GoHealth...');
+
+    // Set orientasi yang diizinkan
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+    debugPrint('✅ Orientasi layar dikonfigurasi');
+
+    // Load environment variables PERTAMA
+    debugPrint('🔧 Memuat environment variables...');
+    await dotenv.load(fileName: ".env");
+    debugPrint('✅ Environment variables berhasil dimuat');
+
+    // Initialize Firebase KEDUA
+    debugPrint('🔥 Inisialisasi Firebase...');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    debugPrint('Firebase initialized successfully');
+    debugPrint('✅ Firebase berhasil diinisialisasi');
 
-    // Set up background message handler BEFORE initializing other services
+    // Register background message handler SETELAH Firebase diinisialisasi
+    debugPrint('📱 Mendaftarkan background message handler...');
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    debugPrint('✅ Background message handler terdaftar');
 
-    // Initialize local database
-    debugPrint('Initializing local database...');
+    // Initialize local database KETIGA (simplified)
+    debugPrint('🗄️ Inisialisasi database lokal...');
     try {
       final dbHelper = DatabaseHelper();
-      await dbHelper.database; // Initialize database
-      debugPrint('Local database initialized successfully');
+      await dbHelper.database;
+      debugPrint('✅ Database lokal berhasil diinisialisasi');
     } catch (e) {
-      debugPrint('Error initializing database: $e');
+      debugPrint('⚠️ Database initialization warning: $e');
+      // Continue even if database fails
     }
 
-    // Initialize FCM service (single unified service)
-    debugPrint('Initializing FCM service...');
-    final fcmService = FCMService();
-    await fcmService.initialize();
-    debugPrint('FCM service initialized successfully');
-
-    await dotenv.load(fileName: ".env");
-    debugPrint('Environment loaded successfully');
-  } catch (e) {
-    debugPrint('Error during app initialization: $e');
+    debugPrint('🎉 Core services berhasil diinisialisasi!');
+  } catch (e, stackTrace) {
+    debugPrint('❌ Error during app initialization: $e');
+    debugPrint('❌ Stack trace: $stackTrace');
+    // Continue to run app even if some initialization fails
   }
 
-  debugPrint('=== GoHealth Started ===');
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  bool _isInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Delayed initialization untuk services yang berat
+    _initializeHeavyServices();
+  }
+
+  Future<void> _initializeHeavyServices() async {
+    // Delay untuk memastikan UI sudah ter-render
+    await Future.delayed(const Duration(seconds: 1));
+
+    if (!mounted) return;
+
+    try {
+      // Initialize FCM service secara background tanpa mengganggu UI
+      debugPrint('📱 Background initialization FCM service...');
+      final fcmService = FCMService();
+
+      // Non-blocking FCM initialization
+      fcmService.initialize().catchError((error) {
+        debugPrint('⚠️ FCM initialization error (non-blocking): $error');
+      });
+
+      setState(() {
+        _isInitialized = true;
+      });
+
+      debugPrint('✅ Heavy services initialized in background');
+    } catch (e) {
+      debugPrint('⚠️ Heavy services initialization warning: $e');
+      // Set initialized anyway to not block UI
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,5 +149,11 @@ class MyApp extends StatelessWidget {
         },
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    // Cleanup jika diperlukan
+    super.dispose();
   }
 }

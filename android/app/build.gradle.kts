@@ -55,12 +55,14 @@ dependencies {
 
     // Add OpenGL ES dependency
     implementation("com.google.android.gms:play-services-games-v2:19.0.0")
-    implementation(platform("com.google.firebase:firebase-bom:32.7.2"))
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2")) // Updated to latest version
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-messaging-ktx") // Add KTX extensions
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
- 
     
+    // Add WorkManager for background tasks (required for FCM)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 }
 
 flutter {

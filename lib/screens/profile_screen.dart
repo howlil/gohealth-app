@@ -1,25 +1,24 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../widgets/navigations/app_layout.dart';
 import '../utils/app_colors.dart';
 import '../utils/responsive_helper.dart';
-import '../utils/image_url_helper.dart';
 import '../widgets/inputs/rounded_input_field.dart';
 import '../widgets/rounded_button.dart';
 import '../providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import '../widgets/profile/profile_avatar.dart';
 import '../widgets/profile/glass_container.dart';
-import '../widgets/navigations/responsive_layout.dart';
+import '../widgets/loading_skeleton.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'dart:async';
 import '../dao/database_helper.dart';
-import '../services/fcm_service.dart';
 import '../models/profile_model.dart';
+import '../utils/provider_snackbar_mixin.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -28,7 +27,8 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen>
+    with ProviderSnackbarMixin<ProfileProvider> {
   // Controllers for form fields
   late TextEditingController _nameController;
   late TextEditingController _ageController;
@@ -37,8 +37,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _gender = 'MALE';
   String _activityLevel = 'MODERATELY_ACTIVE';
   bool _isLoading = false;
-  int _fcmDebugTapCount = 0;
   final ImagePicker _picker = ImagePicker();
+  File? _image;
 
   @override
   void initState() {
@@ -50,8 +50,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _heightController = TextEditingController();
     _weightController = TextEditingController();
 
-    // Load profile data
+    // Load profile data and setup snackbar callback
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      setupProviderSnackbar(context);
       _loadProfileData();
     });
   }
@@ -105,6 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
+    clearProviderSnackbar(context);
     _nameController.dispose();
     _ageController.dispose();
     _heightController.dispose();
@@ -441,129 +443,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _testNotification() async {
-    try {
-      final fcmService = FCMService();
-      await fcmService.sendTestNotification();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🧪 Test notification sent!'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _showFCMDebugInfo(BuildContext context) async {
-    try {
-      final fcmService = FCMService();
-      final debugInfo = fcmService.getDebugInfo();
-      final isEnabled = await fcmService.areNotificationsEnabled();
-
-      if (!context.mounted) return;
-
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('🔔 FCM Debug Info'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('🚀 Status:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(
-                    '• Initialized: ${debugInfo['isInitialized'] ? '✅' : '❌'}'),
-                Text('• Notifications Enabled: ${isEnabled ? '✅' : '❌'}'),
-                Text('• Has Token: ${debugInfo['hasToken'] ? '✅' : '❌'}'),
-                const SizedBox(height: 12),
-                Text('📱 Platform Info:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('• Platform: ${debugInfo['platform']}'),
-                Text('• Channel ID: ${debugInfo['channelId']}'),
-                const SizedBox(height: 12),
-                if (debugInfo['hasToken']) ...[
-                  Text('🔑 Token:',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  SelectableText('${debugInfo['tokenPreview']}...'),
-                  const SizedBox(height: 12),
-                ],
-                Text('💡 Troubleshoot:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('• Cek log console untuk error'),
-                Text('• Test kirim notifikasi dari Firebase Console'),
-                Text('• Pastikan token sudah dikirim ke server'),
-                Text('• Restart app jika perlu'),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-            TextButton(
-              onPressed: () async {
-                try {
-                  await fcmService.sendTestNotification();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text('🧪 Test notification sent!')),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('❌ Error: $e')),
-                    );
-                  }
-                }
-              },
-              child: const Text('Test Notif'),
-            ),
-            TextButton(
-              onPressed: () async {
-                try {
-                  await fcmService.sendTokenToServer();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Token sent to server!')),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
-                  }
-                }
-              },
-              child: const Text('Sync Token'),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final isLandscape = ResponsiveHelper.isLandscape(context);
@@ -575,13 +454,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: const Color(0xFFF8F9FA),
       showBackButton: true,
       currentIndex: 2,
+      actions: [],
       child: Consumer<ProfileProvider>(
         builder: (context, profileProvider, _) {
           // Show skeleton loading
           if (profileProvider.isLoading && profileProvider.profile == null) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const ProfileSkeleton();
           }
 
           if (isMobileLandscape) {
@@ -708,13 +586,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         _buildPersonalInfoSection(isLandscape: isLandscape),
         SizedBox(height: isLandscape ? 12 : 16),
-        if (!isLandscape) ...[
-          _buildPhysicalStatsSection(),
-          const SizedBox(height: 16),
-          _buildActivityLevelSection(),
-          const SizedBox(height: 16),
-        ],
-        _buildActionsSection(isLandscape: isLandscape),
+        _buildLogoutSection(isLandscape: isLandscape),
         const SizedBox(height: 16),
         if (profileProvider.error != null)
           _buildErrorSection(profileProvider.error!),
@@ -749,14 +621,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         GestureDetector(
           onTap: () {
-            // Triple tap counter for FCM debug
-            _fcmDebugTapCount++;
-            if (_fcmDebugTapCount >= 3) {
-              _fcmDebugTapCount = 0;
-              _showFCMDebugInfo(context);
-            }
-            // Reset counter after 2 seconds
-            Timer(Duration(seconds: 2), () => _fcmDebugTapCount = 0);
+            // Email display - no special functionality
           },
           child: Text(
             profile?.email ?? "user@email.com",
@@ -766,27 +631,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ),
-        if (profile?.bmr != null && profile?.tdee != null)
-          Padding(
-            padding: EdgeInsets.only(top: isMobileLandscape ? 6 : 8),
-            child: Wrap(
-              spacing: 8,
-              children: [
-                _buildMetricChip(
-                  'BMR: ${profile?.bmr?.toStringAsFixed(0) ?? "0"} kcal',
-                  Icons.local_fire_department_outlined,
-                  AppColors.primary.withOpacity(0.8),
-                  isLandscape: isLandscape,
-                ),
-                _buildMetricChip(
-                  'TDEE: ${profile?.tdee?.toStringAsFixed(0) ?? "0"} kcal',
-                  Icons.fitness_center_outlined,
-                  AppColors.secondary.withOpacity(0.8),
-                  isLandscape: isLandscape,
-                ),
-              ],
-            ),
-          ),
         Consumer<AuthProvider>(
           builder: (context, authProvider, child) {
             if (!authProvider.isLoggedIn) {
@@ -815,40 +659,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           },
         ),
       ],
-    );
-  }
-
-  Widget _buildMetricChip(String text, IconData icon, Color color,
-      {bool isLandscape = false}) {
-    final isMobile = ResponsiveHelper.isMobile(context);
-    final isMobileLandscape = isMobile && isLandscape;
-
-    return Container(
-      margin: EdgeInsets.only(bottom: isMobileLandscape ? 4 : 8),
-      padding: EdgeInsets.symmetric(
-        horizontal: isMobileLandscape ? 8 : 12,
-        vertical: isMobileLandscape ? 4 : 8,
-      ),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: isMobileLandscape ? 12 : 16, color: color),
-          SizedBox(width: isMobileLandscape ? 4 : 8),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: isMobileLandscape ? 10 : 14,
-              fontWeight: FontWeight.w500,
-              color: color,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -892,67 +702,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildPhysicalStatsSection() {
+  Widget _buildLogoutSection({bool isLandscape = false}) {
     return GlassContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionTitle('Statistik Fisik'),
-          const SizedBox(height: 12),
-          _buildMetricChip(
-            'BMI: ${_calculateBMI().toStringAsFixed(2)}',
-            Icons.fitness_center_outlined,
-            AppColors.primary.withOpacity(0.8),
-          ),
-          _buildMetricChip(
-            'IMC: ${_calculateBMI().toStringAsFixed(2)}',
-            Icons.fitness_center_outlined,
-            AppColors.secondary.withOpacity(0.8),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivityLevelSection({bool isLandscape = false}) {
-    final isMobile = ResponsiveHelper.isMobile(context);
-    final isMobileLandscape = isMobile && isLandscape;
-
-    return GlassContainer(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionTitle('Tingkat Aktivitas', isLandscape: isLandscape),
-          const SizedBox(height: 12),
-          _buildActivityLevelSelector(isLandscape: isLandscape),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionsSection({bool isLandscape = false}) {
-    return GlassContainer(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionTitle('Aksi', isLandscape: isLandscape),
-          const SizedBox(height: 12),
-          _buildAccountOption('Test Notifikasi', Icons.notifications_outlined,
-              () {
-            _testNotification();
-          }, isLandscape: isLandscape),
-          _buildAccountOption('FCM Debug', Icons.bug_report_outlined, () {
-            _showFCMDebugInfo(context);
-          }, isLandscape: isLandscape),
-          _buildAccountOption('Ubah Password', Icons.lock_outline, () {
-            // Handle password change
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Fitur ubah password akan segera tersedia'),
-                backgroundColor: AppColors.primary,
-              ),
-            );
-          }, isLandscape: isLandscape),
           _buildAccountOption('Keluar', Icons.logout_outlined, () {
             _handleLogout();
           }, isLogout: true, isLandscape: isLandscape),
@@ -1201,25 +955,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
-  }
-
-  double _calculateBMI() {
-    try {
-      if (_heightController.text.isEmpty || _weightController.text.isEmpty) {
-        return 0.0;
-      }
-
-      final height = double.parse(_heightController.text);
-      final weight = double.parse(_weightController.text);
-
-      if (height <= 0 || weight <= 0) {
-        return 0.0;
-      }
-
-      final heightInMeters = height / 100;
-      return weight / (heightInMeters * heightInMeters);
-    } catch (e) {
-      return 0.0;
-    }
   }
 }

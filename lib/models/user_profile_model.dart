@@ -36,6 +36,8 @@ class UserProfileData {
   final String? refreshToken;
   final double? bmr;
   final double? tdee;
+  final String? createdAt;
+  final String? updatedAt;
 
   UserProfileData({
     required this.id,
@@ -51,6 +53,8 @@ class UserProfileData {
     this.refreshToken,
     this.bmr,
     this.tdee,
+    this.createdAt,
+    this.updatedAt,
   });
 
   Map<String, dynamic> toJson() {
@@ -68,6 +72,8 @@ class UserProfileData {
       'refreshToken': refreshToken,
       'bmr': bmr,
       'tdee': tdee,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
     };
   }
 
@@ -78,14 +84,22 @@ class UserProfileData {
       email: json['email']?.toString() ?? '',
       profileImage: json['profileImage']?.toString(),
       gender: json['gender']?.toString(),
-      age: (json['age'] as num?)?.toInt(),
-      height: (json['height'] as num?)?.toDouble(),
-      weight: (json['weight'] as num?)?.toDouble(),
+      age: json['age'] != null ? int.tryParse(json['age'].toString()) : null,
+      height: json['height'] != null
+          ? double.tryParse(json['height'].toString())
+          : null,
+      weight: json['weight'] != null
+          ? double.tryParse(json['weight'].toString())
+          : null,
       activityLevel: json['activityLevel']?.toString(),
       token: json['token']?.toString(),
       refreshToken: json['refreshToken']?.toString(),
-      bmr: (json['bmr'] as num?)?.toDouble(),
-      tdee: (json['tdee'] as num?)?.toDouble(),
+      bmr: json['bmr'] != null ? double.tryParse(json['bmr'].toString()) : null,
+      tdee: json['tdee'] != null
+          ? double.tryParse(json['tdee'].toString())
+          : null,
+      createdAt: json['createdAt']?.toString(),
+      updatedAt: json['updatedAt']?.toString(),
     );
   }
 
@@ -103,6 +117,8 @@ class UserProfileData {
     String? refreshToken,
     double? bmr,
     double? tdee,
+    String? createdAt,
+    String? updatedAt,
   }) {
     return UserProfileData(
       id: id ?? this.id,
@@ -118,6 +134,8 @@ class UserProfileData {
       refreshToken: refreshToken ?? this.refreshToken,
       bmr: bmr ?? this.bmr,
       tdee: tdee ?? this.tdee,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 

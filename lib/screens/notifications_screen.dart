@@ -6,6 +6,7 @@ import '../utils/app_colors.dart';
 import '../models/notification_model.dart';
 import '../providers/notification_provider.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/loading_skeleton.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -84,7 +85,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Consumer<NotificationProvider>(
             builder: (context, provider, child) {
               if (provider.isLoading && provider.notifications.isEmpty) {
-                return const Center(child: CircularProgressIndicator());
+                return const NotificationListSkeleton(itemCount: 8);
               }
 
               if (provider.error != null && provider.notifications.isEmpty) {
@@ -120,7 +121,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               }
 
               return RefreshIndicator(
-                onRefresh: () => provider.refreshAll(),
+                onRefresh: () => provider.loadNotifications(refresh: true),
                 child: ListView.builder(
                   controller: _scrollController,
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -144,13 +145,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       );
                     }
 
-                    // Loading indicator
+                    // Loading indicator for pagination
                     if (index == provider.notifications.length + 1) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: CircularProgressIndicator(),
-                        ),
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        child: _buildSingleNotificationSkeleton(),
                       );
                     }
 
@@ -282,16 +282,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     switch (filter) {
       case 'Belum Dibaca':
-        provider.setReadFilter(false);
+        provider.applyFilter(isRead: false);
         break;
       case 'Sudah Dibaca':
-        provider.setReadFilter(true);
+        provider.applyFilter(isRead: true);
         break;
       case 'Pengingat':
-        provider.setTypeFilter(NotificationType.MEAL_REMINDER);
+        provider.applyFilter(type: NotificationType.MEAL_REMINDER);
         break;
       case 'Pencapaian':
-        provider.setTypeFilter(NotificationType.GOAL_ACHIEVED);
+        provider.applyFilter(type: NotificationType.GOAL_ACHIEVED);
         break;
       case 'Semua':
       default:
@@ -571,10 +571,65 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             onPressed: () {
               final provider =
                   Provider.of<NotificationProvider>(context, listen: false);
-              provider.refreshAll();
+              provider.loadNotifications(refresh: true);
             },
             child: const Text('Coba Lagi'),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSingleNotificationSkeleton() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const LoadingSkeleton(width: 40, height: 40, borderRadius: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: LoadingSkeleton(
+                          width: 150, height: 14, borderRadius: 4),
+                    ),
+                    const LoadingSkeleton(width: 8, height: 8, borderRadius: 4),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                LoadingSkeleton(
+                    width: double.infinity, height: 12, borderRadius: 4),
+                const SizedBox(height: 4),
+                LoadingSkeleton(width: 180, height: 12, borderRadius: 4),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    LoadingSkeleton(width: 60, height: 12, borderRadius: 6),
+                    const Spacer(),
+                    LoadingSkeleton(width: 50, height: 10, borderRadius: 4),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const LoadingSkeleton(width: 18, height: 18, borderRadius: 9),
         ],
       ),
     );

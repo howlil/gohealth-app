@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'loading_skeleton.dart';
 
 class LoadingOverlay extends StatelessWidget {
   final bool isLoading;
@@ -19,10 +20,20 @@ class LoadingOverlay extends StatelessWidget {
           Container(
             color: Colors.black.withValues(alpha: 0.3),
             child: const Center(
-              child: CircularProgressIndicator(),
+              child: SizedBox(
+                width: 60,
+                height: 60,
+                child: LoadingSkeleton(
+                  width: 60,
+                  height: 60,
+                  borderRadius: 30,
+                  baseColor: Colors.white,
+                  highlightColor: Colors.grey,
+                ),
+              ),
             ),
           ),
       ],
     );
   }
-} 
+}

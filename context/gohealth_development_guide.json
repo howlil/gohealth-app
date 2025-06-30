@@ -1,0 +1,442 @@
+{
+    "project_info": {
+        "name": "GoHealth",
+        "type": "Flutter Multiplatform Health & Nutrition Tracking App",
+        "description": "Aplikasi kesehatan dan nutrisi dengan fitur tracking makanan, BMI, aktivitas, dan dashboard analytics",
+        "platforms": [
+            "Android",
+            "iOS",
+            "Web",
+            "Desktop"
+        ],
+        "version": "1.0.0+1"
+    },
+    "architecture": {
+        "pattern": "Clean Architecture with Provider State Management",
+        "layers": {
+            "description": "Model → Service → Provider → Feature (Screen & Widget Only)",
+            "details": {
+                "models": "Global data classes, domain models, API response models",
+                "services": "Business logic, API calls, local storage, data synchronization",
+                "providers": "State management dengan ChangeNotifier, reactive UI state",
+                "features": "Screens (pages) dan Widgets (UI components) only, NO business logic"
+            }
+        },
+        "key_principles": [
+            "No repository layer - services direct to providers",
+            "All business logic dalam services",
+            "Providers hanya untuk state management",
+            "Features folder hanya UI components",
+            "Singleton pattern untuk services",
+            "Local-first dengan server synchronization"
+        ]
+    },
+    "folder_structure": {
+        "lib/": {
+            "models/": {
+                "description": "All data classes, domain models, API response models",
+                "naming_convention": "snake_case.dart",
+                "examples": [
+                    "auth_model.dart - Authentication data",
+                    "user_profile_model.dart - User profile data",
+                    "dashboard_model.dart - Dashboard analytics data",
+                    "local_user_model.dart - Local database models",
+                    "api_response_model.dart - Generic API response wrapper"
+                ],
+                "patterns": [
+                    "fromJson/toJson methods untuk semua models",
+                    "copyWith methods untuk immutable updates",
+                    "Null safety dengan nullable fields",
+                    "Validation dalam models jika diperlukan"
+                ]
+            },
+            "services/": {
+                "description": "Business logic, API calls, background tasks, data sync",
+                "naming_convention": "[feature]_service.dart",
+                "examples": [
+                    "auth_service.dart - Authentication logic",
+                    "user_service.dart - User data management",
+                    "data_sync_service.dart - Offline/online synchronization",
+                    "notification_service.dart - Push notifications",
+                    "meal_service.dart - Food & nutrition tracking"
+                ],
+                "patterns": [
+                    "Singleton pattern dengan factory constructor",
+                    "ApiService dependency untuk HTTP calls",
+                    "Error handling dengan try-catch dan custom exceptions",
+                    "Timeout handling untuk network requests",
+                    "Local storage integration"
+                ]
+            },
+            "providers/": {
+                "description": "State management dengan ChangeNotifier",
+                "naming_convention": "[feature]_provider.dart",
+                "examples": [
+                    "auth_provider.dart - Authentication state",
+                    "profile_provider.dart - User profile state",
+                    "dashboard_provider.dart - Analytics state",
+                    "notification_provider.dart - Notifications state"
+                ],
+                "patterns": [
+                    "Extends ChangeNotifier",
+                    "Private service dependencies",
+                    "Loading states (bool _isLoading)",
+                    "Error states (String? _error)",
+                    "Data states dengan getters",
+                    "notifyListeners() after state changes",
+                    "Initialization methods",
+                    "Dispose cleanup"
+                ]
+            },
+            "screens/": {
+                "description": "Application pages/screens",
+                "naming_convention": "[feature]_screen.dart",
+                "examples": [
+                    "login_screen.dart",
+                    "home_screen.dart",
+                    "profile_screen.dart",
+                    "food_screen.dart"
+                ],
+                "patterns": [
+                    "StatefulWidget untuk complex interactions",
+                    "Consumer<Provider> untuk reactive UI",
+                    "AppLayout wrapper untuk consistent navigation",
+                    "Loading states dengan CircularProgressIndicator",
+                    "Error handling dengan user-friendly messages",
+                    "Form validation dengan GlobalKey<FormState>"
+                ]
+            },
+            "widgets/": {
+                "description": "Reusable UI components organized by category",
+                "structure": {
+                    "custom_button.dart": "Reusable button components",
+                    "glass_card.dart": "Glass morphism card design",
+                    "loading_skeleton.dart": "Loading states",
+                    "auth/": "Authentication-specific widgets",
+                    "navigations/": "Navigation components (app_layout, sidebar, bottom_nav)",
+                    "inputs/": "Form inputs dan search components",
+                    "profile/": "Profile-specific components",
+                    "food/": "Food and nutrition components"
+                },
+                "patterns": [
+                    "StatelessWidget default, StatefulWidget jika perlu state",
+                    "Consistent styling dengan theme colors",
+                    "Reusable dengan configurable properties",
+                    "Material Design 3 compliance",
+                    "Responsive design considerations"
+                ]
+            },
+            "utils/": {
+                "description": "Helper functions, constants, configurations",
+                "files": {
+                    "api_endpoints.dart": "API endpoint constants",
+                    "api_service.dart": "HTTP client dengan auth handling",
+                    "app_colors.dart": "Color constants",
+                    "app_constants.dart": "App-wide constants",
+                    "env_config.dart": "Environment configuration",
+                    "storage_util.dart": "SharedPreferences wrapper",
+                    "responsive_helper.dart": "Screen size utilities"
+                }
+            },
+            "dao/": {
+                "description": "Database Access Objects untuk SQLite",
+                "examples": [
+                    "database_helper.dart - Database initialization",
+                    "user_dao.dart - User data access"
+                ]
+            },
+            "routers/": {
+                "description": "Navigation configuration",
+                "files": {
+                    "app_router.dart": "GoRouter configuration dengan auth guards"
+                }
+            }
+        }
+    },
+    "tech_stack": {
+        "framework": "Flutter 3.16.0+",
+        "dart_version": ">=3.2.3 <4.0.0",
+        "state_management": "Provider ^6.1.1",
+        "navigation": "GoRouter ^13.2.0",
+        "networking": {
+            "http": "^1.1.0",
+            "dio": "^5.4.0 (alternative)",
+            "connectivity_plus": "^6.0.5"
+        },
+        "local_storage": {
+            "shared_preferences": "^2.5.3",
+            "sqflite": "^2.3.0",
+            "flutter_secure_storage": "^9.0.0"
+        },
+        "ui": {
+            "flutter_screenutil": "^5.9.0",
+            "cached_network_image": "^3.3.0",
+            "fl_chart": "^1.0.0",
+            "image_picker": "^1.0.7"
+        },
+        "backend_integration": {
+            "firebase_core": "^3.10.1",
+            "firebase_messaging": "^15.1.1",
+            "flutter_local_notifications": "^19.2.1"
+        },
+        "utilities": {
+            "intl": "^0.20.2",
+            "logger": "^2.0.2+1",
+            "flutter_dotenv": "^5.2.1"
+        }
+    },
+    "coding_standards": {
+        "naming_conventions": {
+            "files": "snake_case.dart",
+            "classes": "PascalCase",
+            "methods": "camelCase",
+            "variables": "camelCase",
+            "constants": "SCREAMING_SNAKE_CASE",
+            "private_members": "_camelCase"
+        },
+        "code_organization": {
+            "imports": [
+                "1. Dart imports",
+                "2. Flutter imports",
+                "3. Package imports",
+                "4. Relative imports (project files)"
+            ],
+            "class_structure": [
+                "1. Static/const members",
+                "2. Instance variables",
+                "3. Constructor",
+                "4. Lifecycle methods",
+                "5. Public methods",
+                "6. Private methods",
+                "7. Build method (untuk Widgets)"
+            ]
+        },
+        "error_handling": {
+            "patterns": [
+                "try-catch untuk async operations",
+                "debugPrint untuk logging",
+                "Custom HttpException untuk API errors",
+                "User-friendly error messages",
+                "Fallback states untuk network failures"
+            ]
+        },
+        "async_programming": {
+            "guidelines": [
+                "Gunakan async/await instead of .then()",
+                "Handle timeouts dengan .timeout()",
+                "Use Future.delayed untuk debouncing",
+                "Proper dispose untuk StreamSubscription",
+                "Loading states untuk long operations"
+            ]
+        }
+    },
+    "ui_design_system": {
+        "theme": {
+            "primary_color": "AppColors.primary (Green)",
+            "design_style": "Glass Morphism dengan clean modern aesthetic",
+            "corner_radius": "12-16px default",
+            "spacing": "4, 8, 12, 16, 24, 32px multiples"
+        },
+        "components": {
+            "buttons": {
+                "primary": "RoundedButton dengan AppColors.primary",
+                "secondary": "CustomButton dengan outline style",
+                "loading": "CircularProgressIndicator dalam button"
+            },
+            "inputs": {
+                "default": "RoundedInputField dengan circular border",
+                "search": "ModernSearchField dengan filter integration",
+                "form": "Custom validation dengan error states"
+            },
+            "cards": {
+                "default": "GlassCard dengan backdrop blur",
+                "stats": "Transparent cards dengan borders",
+                "navigation": "Material dengan elevation"
+            },
+            "layouts": {
+                "responsive": "ResponsiveHelper untuk breakpoints",
+                "navigation": "AppLayout dengan adaptive behavior",
+                "scrolling": "SingleChildScrollView dengan physics"
+            }
+        },
+        "responsive_design": {
+            "mobile": "< 600px width",
+            "tablet": "600px - 1200px width",
+            "desktop": ">= 1200px width",
+            "landscape_mobile": "Special handling untuk mobile landscape"
+        }
+    },
+    "data_management": {
+        "strategy": "Local-first dengan server synchronization",
+        "local_storage": {
+            "sqlite": "User data, cache, offline functionality",
+            "shared_preferences": "Settings, simple key-value pairs",
+            "secure_storage": "Tokens, sensitive data"
+        },
+        "synchronization": {
+            "service": "DataSyncService untuk unified data sync",
+            "strategy": "Background sync dengan connectivity monitoring",
+            "conflict_resolution": "Server wins dengan timestamp comparison",
+            "retry_mechanism": "Exponential backoff untuk failed syncs"
+        },
+        "api_integration": {
+            "base_service": "ApiService dengan automatic token refresh",
+            "error_handling": "HTTP status codes dengan user messages",
+            "caching": "Response caching untuk offline access",
+            "pagination": "Consistent pagination patterns"
+        }
+    },
+    "development_workflow": {
+        "feature_development": {
+            "steps": [
+                "1. Define model classes dengan proper serialization",
+                "2. Create service untuk business logic dan API calls",
+                "3. Implement provider untuk state management",
+                "4. Build UI screens dengan Consumer integration",
+                "5. Create reusable widgets jika diperlukan",
+                "6. Add proper error handling dan loading states",
+                "7. Test responsive design pada multiple devices"
+            ]
+        },
+        "testing_strategy": {
+            "unit_tests": "Services dan utility functions",
+            "widget_tests": "UI components dan user interactions",
+            "integration_tests": "End-to-end user workflows"
+        },
+        "performance": {
+            "guidelines": [
+                "Lazy loading untuk lists dengan banyak data",
+                "Image caching dengan cached_network_image",
+                "Debounced search input",
+                "Efficient list rendering dengan ListView.builder",
+                "Proper dispose untuk resources"
+            ]
+        }
+    },
+    "security_practices": {
+        "data_protection": [
+            "Secure storage untuk tokens",
+            "HTTPS only untuk API calls",
+            "Input validation untuk forms",
+            "No logging sensitive data",
+            "Token expiration handling"
+        ],
+        "authentication": [
+            "JWT tokens dengan refresh mechanism",
+            "Automatic token refresh dalam ApiService",
+            "Secure session management",
+            "Logout cleanup semua stored data"
+        ]
+    },
+    "multiplatform_considerations": {
+        "responsive_design": [
+            "AppLayout dengan adaptive navigation",
+            "ResponsiveHelper untuk breakpoint detection",
+            "Platform-specific UI adjustments",
+            "Touch vs mouse interaction handling"
+        ],
+        "platform_specific": [
+            "File paths untuk different platforms",
+            "Notification handling per platform",
+            "Storage locations per platform",
+            "Navigation patterns per platform"
+        ]
+    },
+    "specific_conventions": {
+        "provider_pattern": {
+            "initialization": "initializeXxx() methods untuk setup",
+            "state_methods": "_setLoading(), _clearError() private helpers",
+            "public_methods": "Business actions yang accessible dari UI",
+            "getters": "Expose state untuk Consumer widgets",
+            "dispose": "Cleanup subscriptions dan resources"
+        },
+        "service_pattern": {
+            "singleton": "Factory constructor dengan static instance",
+            "dependencies": "Inject ApiService, database helpers",
+            "methods": "Async methods dengan proper error handling",
+            "logging": "debugPrint untuk debugging information",
+            "timeout": "Network timeout handling"
+        },
+        "widget_pattern": {
+            "stateless_default": "StatelessWidget kecuali butuh local state",
+            "consumer_integration": "Consumer<Provider> untuk reactive updates",
+            "error_handling": "Show user-friendly error messages",
+            "loading_states": "Visual feedback untuk async operations",
+            "responsive": "Adaptive layout untuk different screen sizes"
+        }
+    },
+    "common_patterns": {
+        "api_call_pattern": "ApiService → Service → Provider → UI Consumer",
+        "error_handling_pattern": "try-catch → error state → user notification",
+        "loading_pattern": "isLoading state → UI indicator → completion",
+        "navigation_pattern": "GoRouter dengan auth guards",
+        "form_pattern": "GlobalKey<FormState> → validation → submission",
+        "list_pattern": "ListView.builder dengan loading states",
+        "search_pattern": "Debounced input → service call → filtered results"
+    },
+    "things_to_avoid": {
+        "architecture": [
+            "❌ NO business logic dalam screens atau widgets",
+            "❌ NO direct API calls dari UI components",
+            "❌ NO database calls dari providers",
+            "❌ NO hardcoded values, use constants",
+            "❌ NO mixing different state management solutions"
+        ],
+        "code_quality": [
+            "❌ NO magic numbers atau strings",
+            "❌ NO deeply nested widgets (extract methods)",
+            "❌ NO blocking UI thread dengan synchronous operations",
+            "❌ NO memory leaks dengan unclosed streams",
+            "❌ NO unsafe operations tanpa null checks"
+        ]
+    },
+    "ai_development_instructions": {
+        "when_creating_features": [
+            "1. Always follow the established folder structure",
+            "2. Create models first dengan proper serialization",
+            "3. Implement service dengan comprehensive error handling",
+            "4. Add provider dengan loading dan error states",
+            "5. Build responsive UI dengan Consumer integration",
+            "6. Include proper Indonesian localization",
+            "7. Add meaningful debug logging",
+            "8. Implement offline functionality jika applicable"
+        ],
+        "code_generation_rules": [
+            "Use established naming conventions",
+            "Follow existing patterns dalam codebase",
+            "Include comprehensive error handling",
+            "Add proper documentation comments",
+            "Implement responsive design",
+            "Use Indonesian language untuk user-facing text",
+            "Include loading states untuk async operations",
+            "Add proper dispose methods untuk cleanup"
+        ],
+        "quality_checklist": [
+            "✅ Null safety compliance",
+            "✅ Responsive design implementation",
+            "✅ Error handling dengan user feedback",
+            "✅ Loading states untuk UX",
+            "✅ Proper resource disposal",
+            "✅ Indonesian localization",
+            "✅ Consistent styling dengan design system",
+            "✅ Performance optimization"
+        ]
+    },
+    "maintenance_guidelines": {
+        "regular_tasks": [
+            "Update dependencies secara berkala",
+            "Review dan optimize database queries",
+            "Monitor app performance metrics",
+            "Update API endpoints jika ada perubahan",
+            "Test pada different screen sizes",
+            "Review error logs dan fix issues"
+        ],
+        "scaling_considerations": [
+            "Lazy loading untuk large datasets",
+            "Database indexing untuk better performance",
+            "API caching strategy",
+            "Image optimization dan compression",
+            "Memory usage monitoring"
+        ]
+    }
+}

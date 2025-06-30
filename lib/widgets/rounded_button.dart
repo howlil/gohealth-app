@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'loading_skeleton.dart';
 
 class RoundedButton extends StatelessWidget {
   final String text;
@@ -54,9 +55,12 @@ class RoundedButton extends StatelessWidget {
             ? SizedBox(
                 height: 20,
                 width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.0,
-                  valueColor: AlwaysStoppedAnimation<Color>(textColor),
+                child: LoadingSkeleton(
+                  width: 20,
+                  height: 20,
+                  borderRadius: 10,
+                  baseColor: textColor.withOpacity(0.3),
+                  highlightColor: textColor.withOpacity(0.1),
                 ),
               )
             : Row(

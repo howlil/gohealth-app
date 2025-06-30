@@ -16,6 +16,18 @@ class ApiEndpoints {
   static const String notification = '/notification';
   static const String setting = '/setting';
 
+  // Auth endpoints - coba struktur yang lebih sederhana
+  static const String login = '/auth/login'; // Hapus /api prefix
+  static const String register = '/auth/register'; // Hapus /api prefix
+  static const String logout = '/auth/logout';
+  static const String refreshToken = '/auth/refresh';
+  static const String forgotPassword = '/auth/forgot-password';
+  static const String resetPassword = '/auth/reset-password';
+
+  // Alternative endpoints jika yang atas tidak work
+  static const String loginAlt = '/api/auth/login';
+  static const String registerAlt = '/api/auth/register';
+
   // User endpoints
   static const String me = '$baseUrl$auth/me';
   static const String updateProfile = '$users/profile';

@@ -1,16 +1,21 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
-import '../utils/api_endpoints.dart';
 import '../utils/storage_util.dart';
 import '../utils/env_config.dart';
-import '../services/auth_service.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   final String _baseUrl = EnvConfig.apiBaseUrl;
-  final Logger logger = Logger();
-  final AuthService _authService = AuthService();
+  final Logger logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 0, // Don't show stack trace
+      errorMethodCount: 5, // Only show stack trace for errors
+      lineLength: 120,
+      printEmojis: true,
+      printTime: false,
+    ),
+  );
   bool _isRefreshing = false;
 
   factory ApiService() {
@@ -94,8 +99,6 @@ class ApiService {
           logger.d("Retry Response Status: ${response.statusCode}");
         }
       }
-      logger.d(
-          "Response Body: ${response.body.substring(0, response.body.length > 100 ? 100 : response.body.length)}...");
       return _handleResponse(response);
     } catch (e) {
       logger.e("GET Error: $e");
@@ -276,9 +279,12 @@ class ApiService {
   // Handle API response
   Map<String, dynamic> _handleResponse(http.Response response) {
     try {
-      logger.d("Response Status Code: ${response.statusCode}");
-      logger.d("Response Headers: ${response.headers}");
-      logger.d("Raw Response Body: ${response.body}");
+      // Remove verbose logging that causes confusion
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        logger.d("Success Response: ${response.statusCode}");
+      } else {
+        logger.d("Error Response: ${response.statusCode}");
+      }
 
       // Check if response body is empty
       if (response.body.isEmpty) {
@@ -303,6 +309,9 @@ class ApiService {
       final data = jsonDecode(response.body);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Only log the response body in debug mode if needed
+        logger.d("Raw Response Body: ${response.body}");
+
         return {
           "success": true,
           "data": data['data'],

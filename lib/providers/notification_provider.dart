@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';
+import 'base_provider.dart';
 
-class NotificationProvider extends ChangeNotifier {
+class NotificationProvider extends BaseProvider {
   final NotificationService _notificationService = NotificationService();
 
   List<NotificationModel> _notifications = [];
   int _unreadCount = 0;
-  bool _isLoading = false;
   bool _isLoadingMore = false;
-  String? _error;
 
   // Pagination
   int _currentPage = 0;
@@ -23,12 +22,26 @@ class NotificationProvider extends ChangeNotifier {
   // Getters
   List<NotificationModel> get notifications => _notifications;
   int get unreadCount => _unreadCount;
-  bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
-  String? get error => _error;
   bool get hasMoreData => _hasMoreData;
   bool? get filterIsRead => _filterIsRead;
   NotificationType? get filterType => _filterType;
+
+  // Konstruktor dengan penanganan error
+  NotificationProvider() {
+    // Inisialisasi dengan nilai default dan tangani error dengan aman
+    _unreadCount = 0;
+    _notifications = [];
+  }
+
+  /// Initialize notifications (called from UI)
+  Future<void> initialize() async {
+    debugPrint('🔔 Initializing NotificationProvider');
+    await Future.wait([
+      loadNotifications(refresh: true),
+      loadUnreadCount(),
+    ]);
+  }
 
   /// Load notifications (refresh)
   Future<void> loadNotifications({bool refresh = false}) async {
@@ -38,16 +51,16 @@ class NotificationProvider extends ChangeNotifier {
       _notifications.clear();
     }
 
-    if (_isLoading || (_isLoadingMore && !refresh)) return;
+    if (isLoading || (_isLoadingMore && !refresh)) return;
 
     if (refresh) {
-      _isLoading = true;
+      setLoading(true);
     } else {
       _isLoadingMore = true;
+      notifyListeners();
     }
 
-    _error = null;
-    notifyListeners();
+    clearMessages();
 
     try {
       final response = await _notificationService.getNotifications(
@@ -68,14 +81,19 @@ class NotificationProvider extends ChangeNotifier {
 
         _hasMoreData = notificationResponse.hasNextPage;
         _currentPage++;
+
+        // Show success message for refresh only
+        if (refresh) {
+          setSuccess(response.message ?? 'Notifikasi berhasil dimuat');
+        }
       } else {
-        _error = response?.message ?? 'Failed to load notifications';
+        final errorMessage = response?.message ?? 'Gagal memuat notifikasi';
+        setError(errorMessage);
       }
     } catch (e) {
-      _error = e.toString();
-      debugPrint('Error loading notifications: $e');
+      setError('Terjadi kesalahan saat memuat notifikasi: ${e.toString()}');
     } finally {
-      _isLoading = false;
+      setLoading(false);
       _isLoadingMore = false;
       notifyListeners();
     }
@@ -96,17 +114,14 @@ class NotificationProvider extends ChangeNotifier {
         _unreadCount = response!.data!.count;
         notifyListeners();
       } else {
-        // Don't show error to user, just log it
-        debugPrint('Failed to load unread count: ${response?.message}');
-        // Keep existing unread count or set to 0 as fallback
         _unreadCount = 0;
         notifyListeners();
+        // Don't show error for unread count failure
       }
     } catch (e) {
-      debugPrint('Error loading unread count: $e');
-      // Set fallback value and don't disturb user experience
       _unreadCount = 0;
       notifyListeners();
+      // Don't show error for unread count failure
     }
   }
 
@@ -116,31 +131,31 @@ class NotificationProvider extends ChangeNotifier {
       final response = await _notificationService.markAsRead(notificationId);
 
       if (response?.success == true) {
-        // Update local notification
         final index = _notifications.indexWhere((n) => n.id == notificationId);
         if (index != -1) {
+          final wasUnread = !_notifications[index].isRead;
           _notifications[index] = _notifications[index].copyWith(
             isRead: true,
             readAt: DateTime.now(),
           );
 
-          // Decrease unread count if notification was unread
-          if (!_notifications[index].isRead) {
+          if (wasUnread) {
             _unreadCount = (_unreadCount - 1).clamp(0, _unreadCount);
           }
 
           notifyListeners();
         }
+
+        setSuccess(response?.message ?? 'Notifikasi ditandai sudah dibaca');
         return true;
       } else {
-        _error = response?.message ?? 'Failed to mark notification as read';
-        notifyListeners();
+        final errorMessage =
+            response?.message ?? 'Gagal menandai notifikasi sudah dibaca';
+        setError(errorMessage);
         return false;
       }
     } catch (e) {
-      _error = e.toString();
-      debugPrint('Error marking notification as read: $e');
-      notifyListeners();
+      setError('Terjadi kesalahan saat menandai notifikasi: ${e.toString()}');
       return false;
     }
   }
@@ -151,7 +166,6 @@ class NotificationProvider extends ChangeNotifier {
       final response = await _notificationService.markAllAsRead();
 
       if (response?.success == true) {
-        // Update all local notifications to read
         for (int i = 0; i < _notifications.length; i++) {
           if (!_notifications[i].isRead) {
             _notifications[i] = _notifications[i].copyWith(
@@ -163,17 +177,19 @@ class NotificationProvider extends ChangeNotifier {
 
         _unreadCount = 0;
         notifyListeners();
+
+        setSuccess(
+            response?.message ?? 'Semua notifikasi ditandai sudah dibaca');
         return true;
       } else {
-        _error =
-            response?.message ?? 'Failed to mark all notifications as read';
-        notifyListeners();
+        final errorMessage =
+            response?.message ?? 'Gagal menandai semua notifikasi sudah dibaca';
+        setError(errorMessage);
         return false;
       }
     } catch (e) {
-      _error = e.toString();
-      debugPrint('Error marking all notifications as read: $e');
-      notifyListeners();
+      setError(
+          'Terjadi kesalahan saat menandai semua notifikasi: ${e.toString()}');
       return false;
     }
   }
@@ -185,98 +201,63 @@ class NotificationProvider extends ChangeNotifier {
           await _notificationService.deleteNotification(notificationId);
 
       if (response?.success == true) {
-        // Remove from local list
         final notification = _notifications.firstWhere(
-            (n) => n.id == notificationId,
-            orElse: () => _notifications.first);
+          (n) => n.id == notificationId,
+          orElse: () => _notifications.isNotEmpty
+              ? _notifications.first
+              : _createDummyNotification(),
+        );
+
         _notifications.removeWhere((n) => n.id == notificationId);
 
-        // Decrease unread count if notification was unread
         if (!notification.isRead) {
           _unreadCount = (_unreadCount - 1).clamp(0, _unreadCount);
         }
 
         notifyListeners();
+
+        setSuccess(response?.message ?? 'Notifikasi berhasil dihapus');
         return true;
       } else {
-        _error = response?.message ?? 'Failed to delete notification';
-        notifyListeners();
+        final errorMessage = response?.message ?? 'Gagal menghapus notifikasi';
+        setError(errorMessage);
         return false;
       }
     } catch (e) {
-      _error = e.toString();
-      debugPrint('Error deleting notification: $e');
-      notifyListeners();
+      setError('Terjadi kesalahan saat menghapus notifikasi: ${e.toString()}');
       return false;
     }
   }
 
-  /// Set filter for read status
-  void setReadFilter(bool? isRead) {
-    _filterIsRead = isRead;
-    loadNotifications(refresh: true);
-  }
-
-  /// Set filter for notification type
-  void setTypeFilter(NotificationType? type) {
-    _filterType = type;
-    loadNotifications(refresh: true);
-  }
-
-  /// Clear all filters
-  void clearFilters() {
-    _filterIsRead = null;
-    _filterType = null;
-    loadNotifications(refresh: true);
-  }
-
-  /// Clear error
-  void clearError() {
-    _error = null;
-    notifyListeners();
-  }
-
-  /// Get filtered notifications (for local filtering)
-  List<NotificationModel> getFilteredNotifications({
+  /// Apply filters
+  Future<void> applyFilter({
     bool? isRead,
     NotificationType? type,
-  }) {
-    var filtered = List<NotificationModel>.from(_notifications);
+  }) async {
+    _filterIsRead = isRead;
+    _filterType = type;
 
-    if (isRead != null) {
-      filtered = filtered.where((n) => n.isRead == isRead).toList();
-    }
-
-    if (type != null) {
-      filtered = filtered.where((n) => n.type == type).toList();
-    }
-
-    return filtered;
+    await loadNotifications(refresh: true);
   }
 
-  /// Get unread notifications
-  List<NotificationModel> get unreadNotifications {
-    return _notifications.where((n) => !n.isRead).toList();
+  /// Clear filters
+  Future<void> clearFilters() async {
+    _filterIsRead = null;
+    _filterType = null;
+
+    await loadNotifications(refresh: true);
   }
 
-  /// Get read notifications
-  List<NotificationModel> get readNotifications {
-    return _notifications.where((n) => n.isRead).toList();
-  }
-
-  /// Initialize provider (load initial data)
-  Future<void> initialize() async {
-    await Future.wait([
-      loadNotifications(refresh: true),
-      loadUnreadCount(),
-    ]);
-  }
-
-  /// Refresh all data
-  Future<void> refreshAll() async {
-    await Future.wait([
-      loadNotifications(refresh: true),
-      loadUnreadCount(),
-    ]);
+  /// Helper to create dummy notification (fallback)
+  NotificationModel _createDummyNotification() {
+    return NotificationModel(
+      id: '',
+      title: '',
+      message: '',
+      type: NotificationType.GENERAL,
+      isRead: false,
+      createdAt: DateTime.now(),
+      data: {},
+    );
   }
 }

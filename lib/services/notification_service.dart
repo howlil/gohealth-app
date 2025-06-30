@@ -3,13 +3,18 @@ import '../models/notification_model.dart';
 import '../utils/api_service.dart';
 import '../utils/api_endpoints.dart';
 import '../utils/api_response.dart';
+import 'fcm_service.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   final ApiService _apiService = ApiService();
+  final FCMService _fcmService = FCMService();
 
   factory NotificationService() => _instance;
   NotificationService._internal();
+
+  // Getter to access FCM service for debugging
+  FCMService get fcmService => _fcmService;
 
   /// Get notifications with pagination and filtering
   Future<ApiResponse<NotificationResponse>?> getNotifications({
@@ -38,27 +43,23 @@ class NotificationService {
         queryParams: queryParams,
       );
 
-      debugPrint('Notifications response: $response');
-
       if (response['success'] == true) {
         return ApiResponse<NotificationResponse>(
           success: true,
-          message:
-              response['message'] ?? 'Notifications retrieved successfully',
+          message: response['message'] ?? 'Notifikasi berhasil dimuat',
           data: NotificationResponse.fromJson(response),
         );
       } else {
         return ApiResponse<NotificationResponse>(
           success: false,
-          message: response['message'] ?? 'Failed to get notifications',
+          message: response['message'] ?? 'Gagal memuat notifikasi',
           data: null,
         );
       }
     } catch (e) {
-      debugPrint('Error getting notifications: $e');
       return ApiResponse<NotificationResponse>(
         success: false,
-        message: 'Network error: ${e.toString()}',
+        message: 'Error jaringan: ${e.toString()}',
         data: null,
       );
     }
@@ -72,26 +73,25 @@ class NotificationService {
         requiresAuth: true,
       );
 
-      debugPrint('Unread count response: $response');
-
       if (response['success'] == true) {
         return ApiResponse<UnreadCountResponse>(
           success: true,
-          message: response['message'] ?? 'Unread count retrieved successfully',
+          message: response['message'] ??
+              'Jumlah notifikasi belum dibaca berhasil dimuat',
           data: UnreadCountResponse.fromJson(response),
         );
       } else {
         return ApiResponse<UnreadCountResponse>(
           success: false,
-          message: response['message'] ?? 'Failed to get unread count',
+          message: response['message'] ??
+              'Gagal memuat jumlah notifikasi belum dibaca',
           data: null,
         );
       }
     } catch (e) {
-      debugPrint('Error getting unread count: $e');
       return ApiResponse<UnreadCountResponse>(
         success: false,
-        message: 'Network error: ${e.toString()}',
+        message: 'Error jaringan: ${e.toString()}',
         data: null,
       );
     }
@@ -107,26 +107,24 @@ class NotificationService {
         requiresAuth: true,
       );
 
-      debugPrint('Mark as read response: $response');
-
       if (response['success'] == true) {
         return ApiResponse<NotificationModel>(
           success: true,
-          message: response['message'] ?? 'Notification marked as read',
+          message: response['message'] ?? 'Notifikasi ditandai sudah dibaca',
           data: NotificationModel.fromJson(response['data']),
         );
       } else {
         return ApiResponse<NotificationModel>(
           success: false,
-          message: response['message'] ?? 'Failed to mark notification as read',
+          message:
+              response['message'] ?? 'Gagal menandai notifikasi sudah dibaca',
           data: null,
         );
       }
     } catch (e) {
-      debugPrint('Error marking notification as read: $e');
       return ApiResponse<NotificationModel>(
         success: false,
-        message: 'Network error: ${e.toString()}',
+        message: 'Error jaringan: ${e.toString()}',
         data: null,
       );
     }
@@ -141,27 +139,25 @@ class NotificationService {
         requiresAuth: true,
       );
 
-      debugPrint('Mark all as read response: $response');
-
       if (response['success'] == true) {
         return ApiResponse<Map<String, dynamic>>(
           success: true,
-          message: response['message'] ?? 'All notifications marked as read',
+          message:
+              response['message'] ?? 'Semua notifikasi ditandai sudah dibaca',
           data: response['data'] ?? {'count': 0},
         );
       } else {
         return ApiResponse<Map<String, dynamic>>(
           success: false,
-          message:
-              response['message'] ?? 'Failed to mark all notifications as read',
+          message: response['message'] ??
+              'Gagal menandai semua notifikasi sudah dibaca',
           data: null,
         );
       }
     } catch (e) {
-      debugPrint('Error marking all notifications as read: $e');
       return ApiResponse<Map<String, dynamic>>(
         success: false,
-        message: 'Network error: ${e.toString()}',
+        message: 'Error jaringan: ${e.toString()}',
         data: null,
       );
     }
@@ -175,26 +171,23 @@ class NotificationService {
         requiresAuth: true,
       );
 
-      debugPrint('Delete notification response: $response');
-
       if (response['success'] == true) {
         return ApiResponse<void>(
           success: true,
-          message: response['message'] ?? 'Notification deleted successfully',
+          message: response['message'] ?? 'Notifikasi berhasil dihapus',
           data: null,
         );
       } else {
         return ApiResponse<void>(
           success: false,
-          message: response['message'] ?? 'Failed to delete notification',
+          message: response['message'] ?? 'Gagal menghapus notifikasi',
           data: null,
         );
       }
     } catch (e) {
-      debugPrint('Error deleting notification: $e');
       return ApiResponse<void>(
         success: false,
-        message: 'Network error: ${e.toString()}',
+        message: 'Error jaringan: ${e.toString()}',
         data: null,
       );
     }

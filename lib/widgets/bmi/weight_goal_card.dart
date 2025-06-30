@@ -562,7 +562,6 @@ class _WeightGoalCardState extends State<WeightGoalCard> {
 
   Widget _buildGoalCard() {
     final progress = _calculateProgress();
-    final daysLeft = _calculateDaysLeft();
 
     // Determine if target is to gain or lose weight
     final isGain = _goal!.targetWeight > _goal!.startWeight;

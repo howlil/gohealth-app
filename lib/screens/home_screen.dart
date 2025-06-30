@@ -10,8 +10,9 @@ import '../widgets/home/action_glass_card.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/notification_provider.dart';
+import '../services/fcm_service.dart';
+import '../widgets/loading_skeleton.dart';
 import 'package:go_router/go_router.dart';
-import '../widgets/navigations/responsive_layout.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,6 +22,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static bool _fcmTokenSent =
+      false; // Track if FCM token was sent in this session
+
   @override
   void initState() {
     super.initState();
@@ -28,9 +32,49 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DashboardProvider>().loadDashboardData();
       context.read<ProfileProvider>().initializeProfile();
-      context.read<NotificationProvider>().loadUnreadCount();
+      try {
+        context.read<NotificationProvider>().loadUnreadCount();
+      } catch (e) {
+        debugPrint('Error loading notification count: $e');
+        // Tangani error dengan diam-diam
+      }
+
+      // Send FCM token to server when user reaches homepage
+      _sendFCMTokenToServer();
     });
   }
+
+  Future<void> _sendFCMTokenToServer() async {
+    // Only send FCM token once per session
+    if (_fcmTokenSent) {
+      debugPrint(
+          '🏠 HomeScreen: FCM token already sent in this session, skipping');
+      return;
+    }
+
+    try {
+      debugPrint('🏠 HomeScreen: Sending FCM token to server...');
+      await FCMService().sendTokenToServer();
+      _fcmTokenSent = true; // Mark as sent
+      debugPrint('✅ HomeScreen: FCM token sent to server successfully');
+    } catch (e) {
+      debugPrint('⚠️ HomeScreen: Failed to send FCM token: $e');
+      // Don't show error to user for FCM token failure
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when user returns to this screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final dashboardProvider = context.read<DashboardProvider>();
+      debugPrint('🔄 Home screen focus - refreshing dashboard data');
+      dashboardProvider.loadDashboardData();
+    });
+  }
+
+  // Date picker functionality
 
   @override
   Widget build(BuildContext context) {
@@ -67,103 +111,146 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Main content
-          Consumer<DashboardProvider>(
-            builder: (context, dashboardProvider, child) {
-              if (dashboardProvider.isLoading) {
-                return const Center(
-                  child: CircularProgressIndicator(),
-                );
+          // Main content with RefreshIndicator
+          RefreshIndicator(
+            onRefresh: () async {
+              debugPrint('🔄 Pull to refresh - reloading dashboard data');
+              final dashboardProvider = context.read<DashboardProvider>();
+              await dashboardProvider.loadDashboardData();
+              await context.read<ProfileProvider>().initializeProfile();
+              try {
+                await context.read<NotificationProvider>().loadUnreadCount();
+              } catch (e) {
+                debugPrint('Error refreshing notification count: $e');
+                // Tangani error dengan diam-diam
               }
+            },
+            child: Consumer<DashboardProvider>(
+              builder: (context, dashboardProvider, child) {
+                if (dashboardProvider.isLoading) {
+                  return const DashboardSkeleton();
+                }
 
-              if (dashboardProvider.error != null) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Error: ${dashboardProvider.error}',
-                        style: TextStyle(color: Colors.red.shade700),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => dashboardProvider.loadDashboardData(),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                );
-              }
+                if (dashboardProvider.error != null) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Error: ${dashboardProvider.error}',
+                          style: TextStyle(color: Colors.red.shade700),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () =>
+                              dashboardProvider.loadDashboardData(),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-              return AdaptiveLayout(
-                builder: (context, constraints) {
-                  final isLandscape = ResponsiveHelper.isLandscape(context);
-                  final isTabletOrDesktop =
-                      ResponsiveHelper.isTablet(context) ||
-                          ResponsiveHelper.isDesktop(context);
+                return AdaptiveLayout(
+                  builder: (context, constraints) {
+                    final isLandscape = ResponsiveHelper.isLandscape(context);
+                    final isTabletOrDesktop =
+                        ResponsiveHelper.isTablet(context) ||
+                            ResponsiveHelper.isDesktop(context);
 
-                  return LayoutBuilder(
-                    builder: (context, boxConstraints) {
-                      final isMobile = ResponsiveHelper.isMobile(context);
-                      final isMobileLandscape = isMobile && isLandscape;
+                    return LayoutBuilder(
+                      builder: (context, boxConstraints) {
+                        final isMobile = ResponsiveHelper.isMobile(context);
+                        final isMobileLandscape = isMobile && isLandscape;
 
-                      if (isMobileLandscape) {
-                        return _buildMobileLandscapeFullLayout(
-                            dashboardProvider);
-                      }
-
-                      // Fully scrollable layout untuk portrait
-                      return SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        child: Column(
-                          children: [
-                            // Header area - sekarang ikut scroll
-                            Container(
-                              color: const Color(0xFFF8F9FA),
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                              child: Column(
-                                children: [
-                                  _buildHeader(dashboardProvider),
-                                  const SizedBox(height: 8),
-                                  _buildStatCards(dashboardProvider),
-                                  const SizedBox(height: 12),
-                                ],
-                              ),
-                            ),
-
-                            // Content area - ikut dalam scroll yang sama
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxWidth: ResponsiveHelper.getResponsiveValue(
-                                    context,
-                                    mobile: double.infinity,
-                                    tablet: 800,
-                                    desktop: 1200,
+                        if (isMobileLandscape) {
+                          return SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: Column(
+                              children: [
+                                // Header area - sekarang ikut scroll
+                                Container(
+                                  color: const Color(0xFFF8F9FA),
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                                  child: Column(
+                                    children: [
+                                      _buildHeader(dashboardProvider),
+                                      const SizedBox(height: 8),
+                                      _buildStatCards(dashboardProvider),
+                                      const SizedBox(height: 12),
+                                    ],
                                   ),
                                 ),
+
+                                // Content area - mobile layout vertikal
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                                  child: _buildMobileLayout(dashboardProvider),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+
+                        // Fully scrollable layout untuk portrait
+                        return SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Column(
+                            children: [
+                              // Header area - sekarang ikut scroll
+                              Container(
+                                color: const Color(0xFFF8F9FA),
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 8, 16, 0),
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (isTabletOrDesktop || isLandscape)
-                                      _buildDesktopLayout(dashboardProvider)
-                                    else
-                                      _buildMobileLayout(dashboardProvider),
-                                    const SizedBox(height: 20),
+                                    _buildHeader(dashboardProvider),
+                                    const SizedBox(height: 8),
+                                    _buildStatCards(dashboardProvider),
+                                    const SizedBox(height: 12),
                                   ],
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
+
+                              // Content area - ikut dalam scroll yang sama
+                              Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                                child: ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                        ResponsiveHelper.getResponsiveValue(
+                                      context,
+                                      mobile: double.infinity,
+                                      tablet: 800,
+                                      desktop: 1200,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (isTabletOrDesktop && !isMobile)
+                                        _buildDesktopLayout(dashboardProvider)
+                                      else
+                                        _buildMobileLayout(dashboardProvider),
+                                      const SizedBox(height: 20),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -181,32 +268,34 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Hey ${userName.split(' ').first}",
-                  style: TextStyle(
-                    fontSize: isMobileLandscape ? 16 : 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-                if (!isMobileLandscape) ...[
-                  const SizedBox(height: 2),
+            child: GestureDetector(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
                   Text(
-                    'Selamat datang di GoHealth',
+                    "Hey ${userName.split(' ').first}",
                     style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
+                      fontSize: isMobileLandscape ? 16 : 20,
+                      fontWeight: FontWeight.bold,
                     ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
+                  if (!isMobileLandscape) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Selamat datang di GoHealth',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -221,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       BorderRadius.circular(isMobileLandscape ? 8 : 10),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: Colors.black.withOpacity(0.05),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -233,7 +322,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius:
                         BorderRadius.circular(isMobileLandscape ? 8 : 10),
                     onTap: () {
-                      context.push('/notifications');
+                      try {
+                        context.push('/notifications');
+                      } catch (e) {
+                        debugPrint('Error navigating to notifications: $e');
+                      }
                     },
                     child: Stack(
                       alignment: Alignment.center,
@@ -310,7 +403,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: StatChip(
               title: 'Start Weight',
-              value: '${startWeight.toStringAsFixed(1)} KG',
+              value: startWeight > 0
+                  ? '${startWeight.toStringAsFixed(1)} KG'
+                  : '- KG',
               color: AppColors.primary.withOpacity(0.8),
               iconData: Icons.monitor_weight_outlined,
             ),
@@ -319,7 +414,9 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: StatChip(
               title: 'Goal',
-              value: '${targetWeight.toStringAsFixed(1)} KG',
+              value: targetWeight > 0
+                  ? '${targetWeight.toStringAsFixed(1)} KG'
+                  : '- KG',
               color: AppColors.secondary.withOpacity(0.8),
               iconData: Icons.flag_outlined,
             ),
@@ -328,7 +425,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Expanded(
             child: StatChip(
               title: 'Daily Cal',
-              value: '$dailyCal',
+              value: dailyCal > 0 ? '$dailyCal' : '-',
               color: AppColors.accent1.withOpacity(0.8),
               iconData: Icons.local_fire_department_outlined,
             ),
@@ -342,6 +439,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final spots = dashboardProvider.caloriesSpots;
     final labels = dashboardProvider.chartLabels;
     final timeRange = dashboardProvider.timeRange;
+    final caloriesTarget = dashboardProvider.caloriesTarget;
     final isLandscape = ResponsiveHelper.isLandscape(context);
     final isMobile = ResponsiveHelper.isMobile(context);
     final isMobileLandscape = isMobile && isLandscape;
@@ -360,13 +458,17 @@ class _HomeScreenState extends State<HomeScreen> {
       final maxValue = calorieValues.reduce((a, b) => a > b ? a : b);
       final minValue = calorieValues.reduce((a, b) => a < b ? a : b);
 
-      // Add padding to the max value
-      maxY = (maxValue * 1.2).ceilToDouble();
-      if (maxY < 1000) maxY = 1000;
+      // Add padding to the max value, consider target in calculation
+      maxY = [maxValue * 1.2, caloriesTarget * 1.1, 1000.0]
+          .reduce((a, b) => a > b ? a : b)
+          .ceilToDouble();
 
       // Set minimum with some padding
       minY = (minValue * 0.8).floorToDouble();
       if (minY < 0) minY = 0;
+    } else if (caloriesTarget > 0) {
+      // If no data but have target, set max based on target
+      maxY = (caloriesTarget * 1.2).ceilToDouble();
     }
 
     return GlassCard(
@@ -392,13 +494,46 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    if (spots.isNotEmpty && !isMobileLandscape)
-                      Text(
-                        'Average: ${averageCalories.toStringAsFixed(0)} kcal',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
+                    if (!isMobileLandscape)
+                      Row(
+                        children: [
+                          Text(
+                            spots.isNotEmpty
+                                ? 'Average: ${averageCalories.toStringAsFixed(0)} kcal'
+                                : caloriesTarget > 0
+                                    ? 'Target: ${caloriesTarget.toStringAsFixed(0)} kcal'
+                                    : 'No target set',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Today button
+                          GestureDetector(
+                            onTap: () async {
+                              await dashboardProvider.setToday();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                    color: AppColors.primary.withOpacity(0.3)),
+                              ),
+                              child: Text(
+                                'Today',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                   ],
                 ),
@@ -412,26 +547,8 @@ class _HomeScreenState extends State<HomeScreen> {
           Container(
             height: isMobileLandscape ? 120 : (isLandscape ? 160 : 180),
             child: spots.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.insert_chart_outlined,
-                          size: isMobileLandscape ? 32 : 40,
-                          color: Colors.grey.shade400,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'No data available',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: isMobileLandscape ? 12 : 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildEmptyChartState(
+                    caloriesTarget, timeRange, isMobileLandscape)
                 : _buildChart(spots, labels, minY, maxY, averageCalories,
                     dashboardProvider),
           ),
@@ -449,19 +566,68 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: AppColors.primary,
                     label: 'Consumed',
                   ),
-                  _buildLegendItem(
-                    color: Colors.orange,
-                    label: 'Average',
-                    isDashed: true,
-                  ),
-                  _buildLegendItem(
-                    color: Colors.red,
-                    label: 'Target',
-                    isDashed: true,
-                  ),
+                  if (averageCalories > 0)
+                    _buildLegendItem(
+                      color: Colors.orange,
+                      label: 'Average',
+                      isDashed: true,
+                    ),
+                  if (caloriesTarget > 0)
+                    _buildLegendItem(
+                      color: Colors.red,
+                      label: 'Target',
+                      isDashed: true,
+                    ),
                 ],
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyChartState(
+      double caloriesTarget, String timeRange, bool isMobileLandscape) {
+    final String timeText = timeRange == 'week' ? 'week' : 'month';
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.insert_chart_outlined,
+            size: isMobileLandscape ? 32 : 40,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'No calorie data this $timeText',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: isMobileLandscape ? 12 : 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (caloriesTarget > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Target: ${caloriesTarget.toStringAsFixed(0)} kcal/day',
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: isMobileLandscape ? 10 : 12,
+              ),
+            ),
+          ],
+          if (caloriesTarget == 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Set your daily calorie target in profile',
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: isMobileLandscape ? 10 : 12,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -797,7 +963,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _buildStatItem(
             title: 'BMI',
-            value: bmi.toStringAsFixed(1),
+            value: bmi > 0 ? bmi.toStringAsFixed(1) : '-',
             icon: Icons.monitor_weight_outlined,
             color: AppColors.primary,
             isMobileLandscape: isMobileLandscape,
@@ -805,7 +971,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildDivider(isMobileLandscape: isMobileLandscape),
           _buildStatItem(
             title: 'Status',
-            value: _formatBmiStatus(status),
+            value:
+                status != 'UNKNOWN' && bmi > 0 ? _formatBmiStatus(status) : '-',
             icon: Icons.check_circle_outline,
             color: _getBmiStatusColor(status),
             isMobileLandscape: isMobileLandscape,
@@ -813,7 +980,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildDivider(isMobileLandscape: isMobileLandscape),
           _buildStatItem(
             title: 'Cal. Need',
-            value: caloriesNeed.toString(),
+            value: caloriesNeed > 0 ? caloriesNeed.toString() : '-',
             icon: Icons.local_fire_department_outlined,
             color: AppColors.accent1,
             isMobileLandscape: isMobileLandscape,
@@ -929,25 +1096,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDesktopLayout(DashboardProvider dashboardProvider) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
       children: [
-        Expanded(
-          flex: 2,
-          child: _buildCaloriesTracker(dashboardProvider),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            children: [
-              _buildActionCards(),
-              const SizedBox(height: 16),
-              _buildBottomStats(dashboardProvider),
-              const SizedBox(height: 16),
-              _buildNutritionSummary(dashboardProvider),
-            ],
-          ),
-        ),
+        // Grafik calories tracker full width
+        _buildCaloriesTracker(dashboardProvider),
+        const SizedBox(height: 16),
+
+        // BMI dan Food cards di bawah grafik
+        _buildActionCards(),
+        const SizedBox(height: 16),
+
+        // Bottom stats
+        _buildBottomStats(dashboardProvider),
+        const SizedBox(height: 16),
+
+        // Nutrition summary
+        _buildNutritionSummary(dashboardProvider),
       ],
     );
   }
@@ -963,96 +1127,6 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(height: 16),
         _buildBottomStats(dashboardProvider),
       ],
-    );
-  }
-
-  Widget _buildMobileLandscapeLayout(DashboardProvider dashboardProvider) {
-    return Column(
-      children: [
-        // Row untuk chart dan action cards
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Calories tracker di kiri
-            Expanded(
-              flex: 3,
-              child: _buildCaloriesTracker(dashboardProvider),
-            ),
-            const SizedBox(width: 12),
-            // Action cards dan stats di kanan
-            Expanded(
-              flex: 2,
-              child: Column(
-                children: [
-                  _buildActionCards(),
-                  const SizedBox(height: 8),
-                  _buildBottomStats(dashboardProvider),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        // Nutrition summary di bawah
-        _buildNutritionSummary(dashboardProvider),
-      ],
-    );
-  }
-
-  // New fully scrollable mobile landscape layout
-  Widget _buildMobileLandscapeFullLayout(DashboardProvider dashboardProvider) {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      child: Column(
-        children: [
-          // Header section - ikut scroll
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Column(
-              children: [
-                _buildHeader(dashboardProvider),
-                const SizedBox(height: 6),
-                _buildStatCards(dashboardProvider),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-
-          // Main content in landscape layout
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Left side - Charts
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    children: [
-                      _buildCaloriesTracker(dashboardProvider),
-                      const SizedBox(height: 8),
-                      _buildNutritionSummary(dashboardProvider),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Right side - Action cards and stats
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    children: [
-                      _buildActionCards(),
-                      const SizedBox(height: 8),
-                      _buildBottomStats(dashboardProvider),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16), // Bottom padding
-        ],
-      ),
     );
   }
 

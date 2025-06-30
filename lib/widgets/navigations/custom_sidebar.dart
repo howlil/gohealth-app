@@ -55,7 +55,6 @@ class CustomSidebar extends StatelessWidget {
             route: '/profile',
           ),
           const Spacer(),
-          _buildAdditionalOptions(context),
           const SizedBox(height: 24),
         ],
       ),
@@ -68,8 +67,8 @@ class CustomSidebar extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(10),
@@ -136,64 +135,6 @@ class CustomSidebar extends StatelessWidget {
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                     color:
                         isSelected ? AppColors.primary : Colors.grey.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdditionalOptions(BuildContext context) {
-    return Column(
-      children: [
-        _buildSecondaryNavItem(
-          context: context,
-          icon: Icons.monitor_weight_outlined,
-          label: 'BMI Calculator',
-          route: '/bmi',
-        ),
-        _buildSecondaryNavItem(
-          context: context,
-          icon: Icons.restaurant_outlined,
-          label: 'Food List',
-          route: '/food',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSecondaryNavItem({
-    required BuildContext context,
-    required IconData icon,
-    required String label,
-    required String route,
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _handleNavigation(context, route),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  color: Colors.grey.shade600,
-                  size: 20,
-                ),
-                const SizedBox(width: 16),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.grey.shade700,
                   ),
                 ),
               ],

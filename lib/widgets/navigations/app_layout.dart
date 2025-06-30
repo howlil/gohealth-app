@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'custom_bottom_nav_bar.dart';
 import 'custom_sidebar.dart';
-import 'responsive_layout.dart';
 import '../../utils/responsive_helper.dart';
 
 class AppLayout extends StatelessWidget {
@@ -232,191 +231,17 @@ class AppLayout extends StatelessWidget {
       ),
       body: SafeArea(
         bottom: false,
-        child: showBottomNavBar
-            ? Row(
-                children: [
-                  // Compact sidebar for landscape mobile
-                  _buildCompactSidebar(context),
-                  // Main content with proper scrolling
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Container(
-                        constraints: BoxConstraints(
-                          minHeight: MediaQuery.of(context).size.height -
-                              kToolbarHeight -
-                              MediaQuery.of(context).padding.top -
-                              MediaQuery.of(context).padding.bottom,
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: child,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Container(
-                  constraints: BoxConstraints(
-                    minHeight: MediaQuery.of(context).size.height -
-                        kToolbarHeight -
-                        MediaQuery.of(context).padding.top -
-                        MediaQuery.of(context).padding.bottom,
-                  ),
-                  child: child,
-                ),
-              ),
+        child: child,
       ),
+      // Gunakan bottom navigation bar untuk mobile landscape
+      bottomNavigationBar: showBottomNavBar
+          ? CustomBottomNavBar(currentIndex: currentIndex)
+          : null,
       floatingActionButton: floatingActionButton,
       floatingActionButtonLocation: floatingActionButtonLocation,
     );
   }
 
-  // New compact sidebar widget for mobile landscape
-  Widget _buildCompactSidebar(BuildContext context) {
-    return Container(
-      width: 48, // Reduced from 56 to 48
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          right: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(1, 0),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.of(context).size.height -
-                kToolbarHeight -
-                MediaQuery.of(context).padding.top -
-                MediaQuery.of(context).padding.bottom,
-          ),
-          child: IntrinsicHeight(
-            child: Column(
-              children: [
-                const SizedBox(height: 4),
-                // Logo icon - smaller
-                Container(
-                  width: 28,
-                  height: 28,
-                  margin: const EdgeInsets.only(bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.favorite,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                ),
-                // Navigation items
-                _buildCompactNavItem(
-                  context: context,
-                  icon: Icons.home_outlined,
-                  selectedIcon: Icons.home,
-                  route: '/home',
-                  isSelected: currentIndex == 0,
-                ),
-                _buildCompactNavItem(
-                  context: context,
-                  icon: Icons.add_circle_outline,
-                  selectedIcon: Icons.add_circle,
-                  route: '/nutrition',
-                  isSelected: currentIndex == 1,
-                ),
-                _buildCompactNavItem(
-                  context: context,
-                  icon: Icons.person_outline,
-                  selectedIcon: Icons.person,
-                  route: '/profile',
-                  isSelected: currentIndex == 2,
-                ),
-                const Spacer(),
-                // Additional options
-                _buildCompactNavItem(
-                  context: context,
-                  icon: Icons.monitor_weight_outlined,
-                  selectedIcon: Icons.monitor_weight,
-                  route: '/bmi',
-                  isSelected: false,
-                  isSecondary: true,
-                ),
-                _buildCompactNavItem(
-                  context: context,
-                  icon: Icons.restaurant_outlined,
-                  selectedIcon: Icons.restaurant,
-                  route: '/food',
-                  isSelected: false,
-                  isSecondary: true,
-                ),
-                const SizedBox(height: 4),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCompactNavItem({
-    required BuildContext context,
-    required IconData icon,
-    required IconData selectedIcon,
-    required String route,
-    required bool isSelected,
-    bool isSecondary = false,
-  }) {
-    return Container(
-      width: 48,
-      height: isSecondary ? 32 : 36, // Reduced heights
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _handleNavigation(context, route),
-          borderRadius: BorderRadius.circular(6),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 6),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Center(
-              child: Icon(
-                isSelected ? selectedIcon : icon,
-                color: isSelected
-                    ? Colors.green
-                    : (isSecondary
-                        ? Colors.grey.shade500
-                        : Colors.grey.shade700),
-                size: isSecondary ? 16 : 18, // Reduced icon sizes
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _handleNavigation(BuildContext context, String route) {
-    if (Navigator.of(context).userGestureInProgress) return;
-    context.go(route);
-  }
 
   void _handleBackNavigation(BuildContext context) {
     if (Navigator.of(context).userGestureInProgress) return;

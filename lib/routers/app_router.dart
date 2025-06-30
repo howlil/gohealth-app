@@ -3,7 +3,6 @@ import 'package:gohealth/screens/login_screen.dart';
 import 'package:gohealth/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 
-import '../screens/splash_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/food_screen.dart';
@@ -15,53 +14,35 @@ import '../screens/notifications_screen.dart';
 class AppRouter {
   static GoRouter createRouter(AuthProvider authProvider) {
     return GoRouter(
-      initialLocation: '/',
+      initialLocation: '/login', // Langsung ke login tanpa splash
       redirect: (context, state) {
         final isLoggedIn = authProvider.isLoggedIn;
         final isLoading = authProvider.isLoading;
         final currentLocation = state.matchedLocation;
 
-        // Debug logging
         debugPrint(
             'Router redirect - isLoggedIn: $isLoggedIn, isLoading: $isLoading, location: $currentLocation');
 
-        // Allow splash screen ketika masih loading initial check
-        if (currentLocation == '/' && isLoading) {
-          debugPrint('Showing splash screen while loading');
+        // Don't redirect while loading, stay on current page
+        if (isLoading) {
+          debugPrint('Auth loading, staying on: $currentLocation');
           return null;
         }
 
-        // Setelah loading selesai dari splash, redirect ke home/login
-        if (currentLocation == '/' && !isLoading) {
-          final redirectTo = isLoggedIn ? '/home' : '/login';
-          debugPrint('Splash finished, redirecting to: $redirectTo');
-          return redirectTo;
-        }
-
-        // Jangan redirect jika sedang di login/register screen dan belum login
-        // Biarkan user tetap di screen tersebut untuk melihat error/success message
-        if (!isLoggedIn &&
+        // If logged in and on auth screens, redirect to home
+        if (isLoggedIn &&
             (currentLocation == '/login' || currentLocation == '/register')) {
-          debugPrint('Staying on auth screen: $currentLocation');
-          return null;
+          debugPrint(
+              'User logged in, redirecting to home from: $currentLocation');
+          return '/home';
         }
 
-        // Redirect ke login jika belum login dan bukan di auth screens
+        // If not logged in and not on auth screens, redirect to login
         if (!isLoggedIn &&
             currentLocation != '/login' &&
             currentLocation != '/register') {
           debugPrint('Redirecting to login from: $currentLocation');
           return '/login';
-        }
-
-        // Jika sudah login tapi masih di auth screens, redirect ke home
-        // Tapi tambahkan delay untuk memberi kesempatan success dialog muncul
-        if (isLoggedIn &&
-            (currentLocation == '/login' || currentLocation == '/register')) {
-          debugPrint(
-              'User logged in, will redirect to home from: $currentLocation');
-          // Return null dulu, biar screen handle navigation sendiri
-          return null;
         }
 
         debugPrint('No redirect needed for: $currentLocation');
@@ -70,7 +51,7 @@ class AppRouter {
       routes: [
         GoRoute(
           path: '/',
-          builder: (context, state) => const SplashScreen(),
+          builder: (context, state) => const LoginScreen(), // Redirect ke login
         ),
         GoRoute(
           path: '/login',

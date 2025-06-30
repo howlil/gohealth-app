@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/fcm_service.dart';
+// import '../services/data_sync_service.dart'; // DISABLED temporarily
 import '../models/auth_model.dart';
 import '../utils/storage_util.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
+  // final DataSyncService _dataSyncService = DataSyncService(); // DISABLED temporarily
 
   AuthModel? _user;
   bool _isLoading = false;
@@ -29,11 +32,16 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      final isAuthenticated = await _authService.isAuthenticated();
+      // Add timeout to prevent infinite loading
+      final isAuthenticated = await _authService
+          .isAuthenticated()
+          .timeout(const Duration(seconds: 10));
       _isLoggedIn = isAuthenticated;
 
       if (isAuthenticated) {
-        final userData = await _authService.getCurrentUser();
+        final userData = await _authService
+            .getCurrentUser()
+            .timeout(const Duration(seconds: 10));
         if (userData != null) {
           _user = AuthModel(
             id: userData['id'] ?? '',
@@ -44,13 +52,13 @@ class AuthProvider extends ChangeNotifier {
             refreshToken: await StorageUtil.getRefreshToken() ?? '',
           );
 
-          // Send FCM token to server for existing authenticated user
-          FCMService().sendTokenToServer().catchError((error) {
-            // Error handled
-          });
+          // FCM token will be sent when user reaches homepage
+          debugPrint(
+              '✅ AuthProvider: User already authenticated, FCM token will be sent from homepage');
         }
       }
     } catch (e) {
+      debugPrint('AuthProvider._checkLoginStatus error: $e');
       _error = e.toString();
       _isLoggedIn = false;
     } finally {
@@ -64,24 +72,45 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      final user = await _authService.login(email, password);
+      debugPrint('🔄 AuthProvider: Starting login process for $email');
+
+      final user = await _authService
+          .login(email, password)
+          .timeout(const Duration(seconds: 30));
 
       if (user != null) {
+        debugPrint('✅ AuthProvider: Login successful for ${user.email}');
         _user = user;
         _isLoggedIn = true;
 
-        // Send FCM token to server after successful login
-        FCMService().sendTokenToServer().catchError((error) {
-          // Error handled
-        });
+        // Initialize data sync service after successful login - DISABLED temporarily
+        // try {
+        //   await _dataSyncService.initialize();
+        //   debugPrint('✅ AuthProvider: Data sync service initialized');
+        // } catch (e) {
+        //   debugPrint('⚠️ AuthProvider: Data sync initialization failed: $e');
+        // }
+
+        // FCM token will be sent when user reaches homepage
+        debugPrint(
+            '✅ AuthProvider: Login successful, FCM token will be sent from homepage');
 
         return true;
       } else {
+        debugPrint('❌ AuthProvider: Login returned null user');
         _error = 'Login failed. Please check your credentials.';
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      debugPrint('❌ AuthProvider.login error: $e');
+
+      // Extract and format error message
+      String errorMessage = e.toString();
+      if (errorMessage.contains('HttpException:')) {
+        errorMessage = errorMessage.replaceFirst('HttpException: ', '');
+      }
+
+      _error = errorMessage;
       return false;
     } finally {
       _setLoading(false);
@@ -94,35 +123,60 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      final user = await _authService.register(name, email, password);
+      debugPrint('🔄 AuthProvider: Starting registration process for $email');
+
+      final user = await _authService
+          .register(name, email, password)
+          .timeout(const Duration(seconds: 30));
 
       if (user != null) {
+        debugPrint('✅ AuthProvider: Registration successful for ${user.email}');
+
         // Check if user has valid tokens (successful auto-login after registration)
         if (user.token.isNotEmpty && user.refreshToken.isNotEmpty) {
+          debugPrint(
+              '✅ AuthProvider: Auto-login successful after registration');
           _user = user;
           _isLoggedIn = true;
 
-          // Send FCM token to server after successful registration
-          FCMService().sendTokenToServer().catchError((error) {
-            // Error handled
-          });
+          // Initialize data sync service after successful registration - DISABLED temporarily
+          // try {
+          //   await _dataSyncService.initialize();
+          //   debugPrint('✅ AuthProvider: Data sync service initialized after registration');
+          // } catch (e) {
+          //   debugPrint('⚠️ AuthProvider: Data sync initialization failed after registration: $e');
+          // }
+
+          // FCM token will be sent when user reaches homepage
+          debugPrint(
+              '✅ AuthProvider: Registration with auto-login successful, FCM token will be sent from homepage');
 
           return true;
         } else {
-          // Registration successful but auto-login failed
-          // User needs to login manually
+          // Registration successful but no auto-login - TETAP DI HALAMAN REGISTER
+          debugPrint(
+              '✅ AuthProvider: Registration successful but staying on register page');
           _user = null;
-          _isLoggedIn = false;
-          _error =
-              'Registration successful! Please login with your credentials.';
-          return true; // Return true because registration was successful
+          _isLoggedIn = false; // PENTING: pastikan false agar tidak redirect
+
+          // Jangan set error karena registration berhasil
+          return true;
         }
       } else {
+        debugPrint('❌ AuthProvider: Registration returned null user');
         _error = 'Registration failed. Please try again.';
         return false;
       }
     } catch (e) {
-      _error = e.toString();
+      debugPrint('❌ AuthProvider.register error: $e');
+
+      // Extract and format error message
+      String errorMessage = e.toString();
+      if (errorMessage.contains('HttpException:')) {
+        errorMessage = errorMessage.replaceFirst('HttpException: ', '');
+      }
+
+      _error = errorMessage;
       return false;
     } finally {
       _setLoading(false);
@@ -135,17 +189,23 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      final success = await _authService.logout();
+      final success =
+          await _authService.logout().timeout(const Duration(seconds: 30));
 
       if (success) {
         _user = null;
         _isLoggedIn = false;
+
+        // Dispose data sync service - DISABLED temporarily
+        // _dataSyncService.dispose();
+
         return true;
       } else {
         _error = 'Logout failed. Please try again.';
         return false;
       }
     } catch (e) {
+      debugPrint('AuthProvider.logout error: $e');
       _error = e.toString();
       return false;
     } finally {

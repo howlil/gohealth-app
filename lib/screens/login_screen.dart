@@ -10,11 +10,6 @@ import '../providers/auth_provider.dart';
 import '../widgets/auth/auth_error_widget.dart';
 import '../services/login_service.dart';
 import '../widgets/inputs/rounded_input_field.dart';
-import '../widgets/glass_card.dart';
-import '../widgets/navigations/responsive_layout.dart';
-import '../utils/app_text_styles.dart';
-import '../utils/app_constants.dart';
-import '../utils/api_endpoints.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -121,7 +116,6 @@ class _LoginScreenState extends State<LoginScreen>
         // Setelah dialog ditutup, baru navigate
         if (mounted) {
           debugPrint('Navigating to home after success dialog');
-          // Gunakan pushReplacement untuk mencegah kembali ke login
           context.go('/home');
         }
       } else {
@@ -136,13 +130,22 @@ class _LoginScreenState extends State<LoginScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(_errorMessage ?? 'Login gagal'),
+              content: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(_errorMessage ?? 'Login gagal'),
+                  ),
+                ],
+              ),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
               margin: const EdgeInsets.all(10),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -156,13 +159,22 @@ class _LoginScreenState extends State<LoginScreen>
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(_errorMessage ?? 'Terjadi kesalahan'),
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(_errorMessage ?? 'Terjadi kesalahan'),
+                ),
+              ],
+            ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
             margin: const EdgeInsets.all(10),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
